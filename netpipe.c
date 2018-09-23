@@ -30,6 +30,8 @@
 typedef struct _CHANNEL_DATA {
 	int SourceSocket;
 	int DestSocket;
+	char *SourceAddress;
+	char *DestAddress;
 	struct timeval Timeout;
 } CHANNEL_DATA, *PCHANNEL_DATA;
 
@@ -42,6 +44,7 @@ typedef struct _CHANNEL_END {
 	ECommEndType Type;
 	char *Address;
 	char *Service;
+	char *AcceptAddress;
 	int EndSocket;
 } CHANNEL_END, *PCHANNEL_END;
 
@@ -54,31 +57,67 @@ static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
 
 
-static void _ProcessChannel(const CHANNEL_DATA *Data)
+
+
+static void _LogMsg(uint32_t Level, const char *Format, ...)
+{
+	va_list vs;
+	char msg[4096];
+
+	memset(msg, 0, sizeof(msg));
+	va_start(vs, Format);
+	vsnprintf(msg, sizeof(msg), Format, vs);
+	fputs(msg, stderr);
+	va_end(vs);
+
+	return;
+}
+
+#define Log(aLevel, aFormat, ...)	\
+	_LogMsg(aLevel, "[%u]: " aFormat "\n", GetCurrentThreadId(), __VA_ARGS__)
+
+
+
+static void _ProcessChannel(PCHANNEL_DATA Data)
 {
 	int ret = 0;
 	int len = 0;
 	fd_set fds;
 	char dataBuffer[1024];
 
+	Log(0, "Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
 		len = 0;
 		fds.fd_count = 2;
 		FD_ZERO(&fds);
 		FD_SET(Data->SourceSocket, &fds);
 		FD_SET(Data->DestSocket, &fds);
-		ret = select(0, &fds, NULL, NULL, &Data->Timeout);
+		ret = select(0, &fds, NULL, NULL, NULL);
 		if (ret > 0) {
 			if (FD_ISSET(Data->SourceSocket, &fds)) {
 				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
-				if (len > 0)
+				if (len > 0) {
+					Log(0, "<<< %u bytes received", len);
 					len = send(Data->DestSocket, dataBuffer, len, 0);
+					if (len >= 0)
+						Log(0, ">>> %u bytes sent", len);
+				}
+
+				if (len == -1)
+					ret = -1;
 			}
 
 			if (FD_ISSET(Data->DestSocket, &fds)) {
 				len = recv(Data->DestSocket, dataBuffer, sizeof(dataBuffer), 0);
-				if (len > 0)
+				if (len > 0) {
+					Log(0, ">>> %u bytes received", len);
 					len = send(Data->SourceSocket, dataBuffer, len, 0);
+					if (len >= 0)
+						Log(0, "<<< %u bytes sent", len);
+				}
+
+				if (len == -1)
+					ret = -1;
 			}
 		} else if (ret == SOCKET_ERROR && errno == EINTR) {
 			ret = 0;
@@ -86,10 +125,16 @@ static void _ProcessChannel(const CHANNEL_DATA *Data)
 		}
 	} while (len > 0 && ret >= 0);
 
+	if (len == -1 || ret == SOCKET_ERROR)
+		Log(0, "Error %u", errno);
+	else Log(0, "Closing");
+
 	shutdown(Data->DestSocket, SD_BOTH);
 	closesocket(Data->DestSocket);
 	shutdown(Data->SourceSocket, SD_BOTH);
 	closesocket(Data->SourceSocket);
+	free(Data->SourceAddress);
+	free(Data->DestAddress);
 	free(Data);
 
 	return;
@@ -109,53 +154,125 @@ static DWORD WINAPI _ChannelThreadWrapper(PVOID Parameter)
 #endif
 
 
+
+char *sockaddrstr(const struct sockaddr *Addr)
+{
+	size_t len = 0;
+	char *ret = NULL;
+	const struct sockaddr_in *in4 = NULL;
+	const struct sockaddr_in6 *in6 = NULL;
+	const unsigned char *bytes = NULL;
+	const unsigned short *words = NULL;
+
+	len = 128;
+	ret = (char *)malloc(len);
+	if (ret == NULL)
+		return ret;
+
+	memset(ret, 0, len);
+	switch (Addr->sa_family) {
+		case AF_INET:
+			in4 = (struct sockaddr_in *)Addr;
+			bytes = &in4->sin_addr.S_un.S_un_b.s_b1;
+			snprintf(ret, len, "%u.%u.%u.%u:%u", bytes[0], bytes[1], bytes[2], bytes[3], ntohs(in4->sin_port));
+			break;
+		case AF_INET6:
+			in6 = (struct sockaddr_in6 *)Addr;
+			words = in6->sin6_addr.u.Word;
+			snprintf(ret, len, "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x:%u", words[0], words[1], words[2], words[3], words[4], words[5], words[6], words[7], ntohs(in6->sin6_port));
+			break;
+		default:
+			free(ret);
+			ret = NULL;
+			break;
+	}
+
+	return ret;
+}
+
+
 static int _PrepareChannelEnd(PCHANNEL_END End)
 {
 	int ret = 0;
 	int sock = INVALID_SOCKET;
 	struct addrinfo hints;
 	struct addrinfo *addrs;
+	struct sockaddr_storage acceptAddr;
+	int acceptAddrLen = sizeof(acceptAddr);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
-	char acceptAddr[64];
-	int acceptAddrLen = sizeof(acceptAddr);
-
+	Log(0, "Looking for %s:%s", End->Address, End->Service);
 	ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
 	if (ret == 0 && addrs->ai_family != AF_INET && addrs->ai_family != AF_INET6)
 		ret = -1;
 	
 	if (ret == 0) {
+		Log(0, "Creating a socket");
 		sock = socket(addrs->ai_family, SOCK_STREAM, IPPROTO_TCP);
 		if (sock != INVALID_SOCKET) {
 			switch (End->Type) {
 				case cetAccept:
-					ret = bind(sock, addrs->ai_addr, addrs->ai_addrlen);
-					if (ret == 0)
+					Log(0, "Binding the socket");
+					ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+					if (ret == 0) {
+						Log(0, "Listening");
 						ret = listen(sock, 0);
+						if (ret == -1)
+							Log(0, "Error %u", errno);
+					} else Log(0, "Error %u", errno);
 
 					if (ret == 0) {
+						Log(0, "Accepting");
 						End->EndSocket = accept(sock, (struct sockaddr *)&acceptAddr, &acceptAddrLen);
+						if (End->EndSocket != INVALID_SOCKET) {
+							End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
+							if (End->AcceptAddress != NULL)
+								Log(0, "Accepted a connection from %s", End->AcceptAddress);
+							
+							if (End->AcceptAddress == NULL) {
+								Log(0, "Out of memory");
+								closesocket(End->EndSocket);
+							}
+						}
+
 						if (End->EndSocket == INVALID_SOCKET)
 							ret = -1;
 					}
 					break;
 				case cetConnect:
-					ret = connect(sock, addrs->ai_addr, addrs->ai_addrlen);
-					if (ret == 0) {
-						End->EndSocket = sock;
-						sock = INVALID_SOCKET;
-					}
+					End->AcceptAddress = sockaddrstr(addrs->ai_addr);
+					if (End->AcceptAddress != NULL) {
+						Log(0, "Connesting to %s (%s)", End->Address, End->AcceptAddress);
+						ret = connect(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+						if (ret == 0) {
+							End->EndSocket = sock;
+							sock = INVALID_SOCKET;
+						}
+
+						if (ret == -1)
+							free(End->AcceptAddress);
+					} else Log(0, "Out of memory");
 					break;
 			}
 
 			if (sock != INVALID_SOCKET)
 				closesocket(sock);
-		}
+		} else Log(0, "Error %u", errno);
 
 		freeaddrinfo(addrs);
+	}
+
+	if (ret == 0) {
+		int ka = 1;
+
+		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, &ka, sizeof(ka));
+		if (ret == SOCKET_ERROR) {
+			free(End->AcceptAddress);
+			closesocket(End->EndSocket);
+		}
 	}
 
 	return ret;
@@ -251,11 +368,13 @@ int main(int argc, char *argv[])
 		CHANNEL_END source;
 		CHANNEL_END dest;
 
+		memset(&source, 0, sizeof(source));
 		source.Type = _sourceMode;
 		source.Address = _sourceAddress;
 		source.Service = _sourceService;
 		ret = _PrepareChannelEnd(&source);
 		if (ret == 0) {
+			memset(&dest, 0, sizeof(dest));
 			dest.Type = _targetMode;
 			dest.Address = _targetAddress;
 			dest.Service = _targetService;
@@ -267,6 +386,8 @@ int main(int argc, char *argv[])
 				if (d != NULL) {
 					d->Timeout.tv_sec = 5;
 					d->Timeout.tv_usec = 0;
+					d->SourceAddress = source.AcceptAddress;
+					d->DestAddress = dest.AcceptAddress;
 					d->SourceSocket = source.EndSocket;
 					d->DestSocket = dest.EndSocket;
 #ifdef _WIN32
