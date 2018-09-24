@@ -295,6 +295,9 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 	return ret;
 }
 
+#define arg_advance(aArgc, aArg)	\
+	{ --aArgc; ++aArg;  }
+
 
 
 int main(int argc, char *argv[])
@@ -329,26 +332,22 @@ int main(int argc, char *argv[])
 	argc -= 2;
 	while (ret == 0 && argc > 0) {
 		if (strcmp(*arg, "--source-host") == 0) {
-			--argc;
-			++arg;
+			arg_advance(argc, arg);
 			if (argc > 0)
 				_sourceAddress = *arg;
 			else ret = -3;
 		} else if (strcmp(*arg, "--source-port") == 0) {
-			--argc;
-			++arg;
+			arg_advance(argc, arg);
 			if (argc > 0)
 				_sourceService = *arg;
 			else ret = -3;
 		} else if (strcmp(*arg, "--target-host") == 0) {
-			--argc;
-			++arg;
+			arg_advance(argc, arg);
 			if (argc > 0)
 				_targetAddress = *arg;
 			else ret = -3;
 		} else if (strcmp(*arg, "--target-port") == 0) {
-			--argc;
-			++arg;
+			arg_advance(argc, arg);
 			if (argc > 0)
 				_targetService = *arg;
 			else ret = -3;
@@ -366,8 +365,7 @@ int main(int argc, char *argv[])
 			_loggingFlags |= LOG_FLAG_PACKET_DATA;
 		else ret = -4;
 
-		--argc;
-		++arg;
+		arg_advance(argc, arg);
 	}
 
 	switch (ret) {
