@@ -62,6 +62,7 @@ static ECommEndType _sourceMode = cetAccept;
 static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
 static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING | LOG_FLAG_INFO);
+static int _keepAlive = 0;
 
 
 static void _LogMsg(uint32_t Level, const char *Format, ...)
@@ -283,10 +284,8 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 		freeaddrinfo(addrs);
 	}
 
-	if (ret == 0) {
-		int ka = 1;
-
-		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&ka, sizeof(ka));
+	if (ret == 0 && _keepAlive) {
+		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&_keepAlive, sizeof(_keepAlive));
 		if (ret == SOCKET_ERROR) {
 			free(End->AcceptAddress);
 			closesocket(End->EndSocket);
@@ -347,13 +346,17 @@ int main(int argc, char *argv[])
 			if (argc > 0)
 				_targetAddress = *arg;
 			else ret = -3;
-		} else if (strcmp(*arg, "--target-port") == 0) {
+		}
+		else if (strcmp(*arg, "--target-port") == 0) {
 			--argc;
 			++arg;
 			if (argc > 0)
 				_targetService = *arg;
 			else ret = -3;
-		} else ret = -4;
+		}
+		else if (strcmp(*arg, "keep-alive") == 0)
+			_keepAlive = 1;
+		else ret = -4;
 
 		--argc;
 		++arg;
