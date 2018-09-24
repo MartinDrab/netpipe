@@ -9,8 +9,10 @@
 #include <windows.h>
 #else
 #include <sys/types.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 #endif
 
 
@@ -192,12 +194,12 @@ char *sockaddrstr(const struct sockaddr *Addr)
 	switch (Addr->sa_family) {
 		case AF_INET:
 			in4 = (struct sockaddr_in *)Addr;
-			bytes = &in4->sin_addr.S_un.S_un_b.s_b1;
+			bytes = (unsigned char *)&in4->sin_addr;
 			snprintf(ret, len, "%u.%u.%u.%u:%u", bytes[0], bytes[1], bytes[2], bytes[3], ntohs(in4->sin_port));
 			break;
 		case AF_INET6:
 			in6 = (struct sockaddr_in6 *)Addr;
-			words = in6->sin6_addr.u.Word;
+			words = (unsigned short *)&in6->sin6_addr;
 			snprintf(ret, len, "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x:%u", words[0], words[1], words[2], words[3], words[4], words[5], words[6], words[7], ntohs(in6->sin6_port));
 			break;
 		default:
