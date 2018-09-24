@@ -61,7 +61,7 @@ static char *_targetService = "22222";
 static ECommEndType _sourceMode = cetAccept;
 static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
-static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING | LOG_FLAG_INFO);
+static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING);
 static int _keepAlive = 0;
 
 
@@ -346,16 +346,24 @@ int main(int argc, char *argv[])
 			if (argc > 0)
 				_targetAddress = *arg;
 			else ret = -3;
-		}
-		else if (strcmp(*arg, "--target-port") == 0) {
+		} else if (strcmp(*arg, "--target-port") == 0) {
 			--argc;
 			++arg;
 			if (argc > 0)
 				_targetService = *arg;
 			else ret = -3;
-		}
-		else if (strcmp(*arg, "keep-alive") == 0)
+		} else if (strcmp(*arg, "keep-alive") == 0)
 			_keepAlive = 1;
+		else if (strcmp(*arg, "--log-error") == 0)
+			_loggingFlags |= LOG_FLAG_ERROR;
+		else if (strcmp(*arg, "--log-warning") == 0)
+			_loggingFlags |= LOG_FLAG_WARNING;
+		else if (strcmp(*arg, "--log-info") == 0)
+			_loggingFlags |= LOG_FLAG_INFO;
+		else if (strcmp(*arg, "--log-packet") == 0)
+			_loggingFlags |= LOG_FLAG_PACKET;
+		else if (strcmp(*arg, "--log-packet-data") == 0)
+			_loggingFlags |= LOG_FLAG_PACKET_DATA;
 		else ret = -4;
 
 		--argc;
