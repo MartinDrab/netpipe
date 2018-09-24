@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
 			if (argc > 0)
 				_targetService = *arg;
 			else ret = -3;
-		} else if (strcmp(*arg, "keep-alive") == 0)
+		} else if (strcmp(*arg, "--keep-alive") == 0)
 			_keepAlive = 1;
 		else if (strcmp(*arg, "--log-error") == 0)
 			_loggingFlags |= LOG_FLAG_ERROR;
