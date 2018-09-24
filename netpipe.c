@@ -48,6 +48,12 @@ typedef struct _CHANNEL_END {
 	int EndSocket;
 } CHANNEL_END, *PCHANNEL_END;
 
+#define LOG_FLAG_ERROR			1
+#define LOG_FLAG_WARNING		2
+#define LOG_FLAG_INFO			4
+#define LOG_FLAG_PACKET			8
+#define LOG_FLAG_PACKET_DATA	0x10
+
 static char *_sourceAddress = "0.0.0.0";
 static char *_sourceService = "1337";
 static char *_targetAddress = "jadro-windows.cz";
@@ -55,8 +61,7 @@ static char *_targetService = "22222";
 static ECommEndType _sourceMode = cetAccept;
 static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
-
-
+static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING | LOG_FLAG_INFO);
 
 
 static void _LogMsg(uint32_t Level, const char *Format, ...)
@@ -64,11 +69,13 @@ static void _LogMsg(uint32_t Level, const char *Format, ...)
 	va_list vs;
 	char msg[4096];
 
-	memset(msg, 0, sizeof(msg));
-	va_start(vs, Format);
-	vsnprintf(msg, sizeof(msg), Format, vs);
-	fputs(msg, stderr);
-	va_end(vs);
+	if (_loggingFlags & Level) {
+		memset(msg, 0, sizeof(msg));
+		va_start(vs, Format);
+		vsnprintf(msg, sizeof(msg), Format, vs);
+		fputs(msg, stderr);
+		va_end(vs);
+	}
 
 	return;
 }
@@ -76,6 +83,17 @@ static void _LogMsg(uint32_t Level, const char *Format, ...)
 #define Log(aLevel, aFormat, ...)	\
 	_LogMsg(aLevel, "[%u]: " aFormat "\n", GetCurrentThreadId(), __VA_ARGS__)
 
+#define LogError(aFormat, ...)	 \
+	Log(LOG_FLAG_ERROR, aFormat, __VA_ARGS__)
+
+#define LogWarning(aFormat, ...)	 \
+	Log(LOG_FLAG_WARNING, aFormat, __VA_ARGS__)
+
+#define LogInfo(aFormat, ...)	 \
+	Log(LOG_FLAG_INFO, aFormat, __VA_ARGS__)
+
+#define LogPacket(aFormat, ...)	 \
+	Log(LOG_FLAG_PACKET, aFormat, __VA_ARGS__)
 
 
 static void _ProcessChannel(PCHANNEL_DATA Data)
@@ -85,7 +103,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	fd_set fds;
 	char dataBuffer[1024];
 
-	Log(0, "Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
+	LogInfo("Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
 		len = 0;
 		fds.fd_count = 2;
@@ -97,10 +115,10 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 			if (FD_ISSET(Data->SourceSocket, &fds)) {
 				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
-					Log(0, "<<< %u bytes received", len);
+					LogPacket("<<< %u bytes received", len);
 					len = send(Data->DestSocket, dataBuffer, len, 0);
 					if (len >= 0)
-						Log(0, ">>> %u bytes sent", len);
+						LogPacket(">>> %u bytes sent", len);
 				}
 
 				if (len == -1)
@@ -110,10 +128,10 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 			if (FD_ISSET(Data->DestSocket, &fds)) {
 				len = recv(Data->DestSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
-					Log(0, ">>> %u bytes received", len);
+					LogPacket(">>> %u bytes received", len);
 					len = send(Data->SourceSocket, dataBuffer, len, 0);
 					if (len >= 0)
-						Log(0, "<<< %u bytes sent", len);
+						LogPacket("<<< %u bytes sent", len);
 				}
 
 				if (len == -1)
@@ -126,8 +144,8 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	} while (len > 0 && ret >= 0);
 
 	if (len == -1 || ret == SOCKET_ERROR)
-		Log(0, "Error %u", errno);
-	else Log(0, "Closing");
+		LogError("Error %u", errno);
+	else LogInfo("Closing");
 
 	shutdown(Data->DestSocket, SD_BOTH);
 	closesocket(Data->DestSocket);
@@ -204,36 +222,36 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
-	Log(0, "Looking for %s:%s", End->Address, End->Service);
+	LogInfo("Looking for %s:%s", End->Address, End->Service);
 	ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
 	if (ret == 0 && addrs->ai_family != AF_INET && addrs->ai_family != AF_INET6)
 		ret = -1;
 	
 	if (ret == 0) {
-		Log(0, "Creating a socket");
+		LogInfo("Creating a socket");
 		sock = socket(addrs->ai_family, SOCK_STREAM, IPPROTO_TCP);
 		if (sock != INVALID_SOCKET) {
 			switch (End->Type) {
 				case cetAccept:
-					Log(0, "Binding the socket");
+					LogInfo("Binding the socket");
 					ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
 					if (ret == 0) {
-						Log(0, "Listening");
+						LogInfo("Listening");
 						ret = listen(sock, 0);
 						if (ret == -1)
-							Log(0, "Error %u", errno);
-					} else Log(0, "Error %u", errno);
+							LogError("Error %u", errno);
+					} else LogError("Error %u", errno);
 
 					if (ret == 0) {
-						Log(0, "Accepting");
+						LogInfo("Accepting");
 						End->EndSocket = accept(sock, (struct sockaddr *)&acceptAddr, &acceptAddrLen);
 						if (End->EndSocket != INVALID_SOCKET) {
 							End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
 							if (End->AcceptAddress != NULL)
-								Log(0, "Accepted a connection from %s", End->AcceptAddress);
+								LogInfo("Accepted a connection from %s", End->AcceptAddress);
 							
 							if (End->AcceptAddress == NULL) {
-								Log(0, "Out of memory");
+								LogError("Out of memory");
 								closesocket(End->EndSocket);
 							}
 						}
@@ -245,7 +263,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 				case cetConnect:
 					End->AcceptAddress = sockaddrstr(addrs->ai_addr);
 					if (End->AcceptAddress != NULL) {
-						Log(0, "Connesting to %s (%s)", End->Address, End->AcceptAddress);
+						LogInfo("Connesting to %s (%s)", End->Address, End->AcceptAddress);
 						ret = connect(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
 						if (ret == 0) {
 							End->EndSocket = sock;
@@ -254,13 +272,13 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 
 						if (ret == -1)
 							free(End->AcceptAddress);
-					} else Log(0, "Out of memory");
+					} else LogError("Out of memory");
 					break;
 			}
 
 			if (sock != INVALID_SOCKET)
 				closesocket(sock);
-		} else Log(0, "Error %u", errno);
+		} else LogError("Error %u", errno);
 
 		freeaddrinfo(addrs);
 	}
@@ -268,7 +286,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 	if (ret == 0) {
 		int ka = 1;
 
-		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, &ka, sizeof(ka));
+		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&ka, sizeof(ka));
 		if (ret == SOCKET_ERROR) {
 			free(End->AcceptAddress);
 			closesocket(End->EndSocket);
