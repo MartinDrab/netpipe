@@ -66,6 +66,7 @@ static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
 static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING);
 static int _keepAlive = 0;
+static int _addressFamily = AF_UNSPEC;
 
 
 static void _LogMsg(uint32_t Level, const char *Format, ...)
@@ -244,7 +245,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 	int acceptAddrLen = sizeof(acceptAddr);
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = _addressFamily;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	LogInfo("Looking for %s:%s", End->Address, End->Service);
@@ -360,22 +361,26 @@ int main(int argc, char *argv[])
 			if (argc > 0)
 				_sourceAddress = *arg;
 			else ret = -3;
-		} else if (strcmp(*arg, "--source-port") == 0) {
+		}
+		else if (strcmp(*arg, "--source-port") == 0) {
 			arg_advance(argc, arg);
 			if (argc > 0)
 				_sourceService = *arg;
 			else ret = -3;
-		} else if (strcmp(*arg, "--target-host") == 0) {
+		}
+		else if (strcmp(*arg, "--target-host") == 0) {
 			arg_advance(argc, arg);
 			if (argc > 0)
 				_targetAddress = *arg;
 			else ret = -3;
-		} else if (strcmp(*arg, "--target-port") == 0) {
+		}
+		else if (strcmp(*arg, "--target-port") == 0) {
 			arg_advance(argc, arg);
 			if (argc > 0)
 				_targetService = *arg;
 			else ret = -3;
-		} else if (strcmp(*arg, "--keep-alive") == 0)
+		}
+		else if (strcmp(*arg, "--keep-alive") == 0)
 			_keepAlive = 1;
 		else if (strcmp(*arg, "--log-error") == 0)
 			_loggingFlags |= LOG_FLAG_ERROR;
@@ -387,6 +392,10 @@ int main(int argc, char *argv[])
 			_loggingFlags |= LOG_FLAG_PACKET;
 		else if (strcmp(*arg, "--log-packet-data") == 0)
 			_loggingFlags |= LOG_FLAG_PACKET_DATA;
+		else if (strcmp(*arg, "-4") == 0)
+			_addressFamily = AF_INET;
+		else if (strcmp(*arg, "-6") == 0)
+			_addressFamily = AF_INET6;
 		else ret = -4;
 
 		arg_advance(argc, arg);
