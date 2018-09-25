@@ -325,6 +325,44 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 
 
 
+typedef enum _EOptionType {
+	otUnknown,
+	otSourceHost,
+	otSourcePort,
+	otTargetHost,
+	otTargetPort,
+	otIPv4Only,
+	otIPv6Only,
+	otLogError,
+	otLogWarning,
+	otLogInfo,
+	otLogPacket,
+	otLogPacketData,
+} EOptionType, *PEOptionType;
+
+typedef struct _COMMAND_LINE_OPTION{
+	EOptionType Type;
+	int Specified;
+	size_t ArgumentCount;
+	size_t NameCount;
+	char *Names[2];
+} COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
+
+static COMMAND_LINE_OPTION _cmdOptions[] = {
+	{otSourceHost, 0, 1, 2, {"-h", "--source-host"}},
+	{otSourcePort, 0, 1, 2, {"-p", "--source-port"}},
+	{otTargetHost, 0, 1, 2, {"-H", "--target-host"}},
+	{otTargetPort, 0, 1, 2, {"-P", "--target-port"}},
+	{otIPv4Only, 0, 0, 1, {"-4"}},
+	{otIPv6Only, 0, 0, 1, {"-6"}},
+	{otLogError, 0, 0, 1, {"--log-error"}},
+	{otLogWarning, 0, 0, 1, {"--log-warning"}},
+	{otLogInfo, 0, 0, 1, {"--log-info"}},
+	{otLogPacket, 0, 0, 1, {"--log-packet"}},
+	{otLogPacketData, 0, 0, 1, {"--log-packet-data"}},
+	{otUnknown, 0, 0, 0},
+};
+
 int main(int argc, char *argv[])
 {
 	int ret = 0;
@@ -356,49 +394,78 @@ int main(int argc, char *argv[])
 	char **arg = argv + 2;
 	argc -= 2;
 	while (ret == 0 && argc > 0) {
-		if (strcmp(*arg, "--source-host") == 0) {
-			arg_advance(argc, arg);
-			if (argc > 0)
-				_sourceAddress = *arg;
-			else ret = -3;
-		}
-		else if (strcmp(*arg, "--source-port") == 0) {
-			arg_advance(argc, arg);
-			if (argc > 0)
-				_sourceService = *arg;
-			else ret = -3;
-		}
-		else if (strcmp(*arg, "--target-host") == 0) {
-			arg_advance(argc, arg);
-			if (argc > 0)
-				_targetAddress = *arg;
-			else ret = -3;
-		}
-		else if (strcmp(*arg, "--target-port") == 0) {
-			arg_advance(argc, arg);
-			if (argc > 0)
-				_targetService = *arg;
-			else ret = -3;
-		}
-		else if (strcmp(*arg, "--keep-alive") == 0)
-			_keepAlive = 1;
-		else if (strcmp(*arg, "--log-error") == 0)
-			_loggingFlags |= LOG_FLAG_ERROR;
-		else if (strcmp(*arg, "--log-warning") == 0)
-			_loggingFlags |= LOG_FLAG_WARNING;
-		else if (strcmp(*arg, "--log-info") == 0)
-			_loggingFlags |= LOG_FLAG_INFO;
-		else if (strcmp(*arg, "--log-packet") == 0)
-			_loggingFlags |= LOG_FLAG_PACKET;
-		else if (strcmp(*arg, "--log-packet-data") == 0)
-			_loggingFlags |= LOG_FLAG_PACKET_DATA;
-		else if (strcmp(*arg, "-4") == 0)
-			_addressFamily = AF_INET;
-		else if (strcmp(*arg, "-6") == 0)
-			_addressFamily = AF_INET6;
-		else ret = -4;
+		int found = 0;
+		PCOMMAND_LINE_OPTION cmdOption = _cmdOptions;
 
-		arg_advance(argc, arg);
+		for (size_t i = 0; i < sizeof(_cmdOptions) / sizeof(_cmdOptions) - 1; ++i) {
+			for (size_t j = 0; j < cmdOption->NameCount; ++j) {
+				found = (strcmp(*arg, cmdOption->Names[j]) == 0);
+				if (found) {
+					++cmdOption->Specified;
+					if (argc < cmdOption->ArgumentCount) {
+						ret = -1;
+						LogError("Not enough arguments for the %s option", *arg);
+						break;
+					}
+
+					if (cmdOption->Specified > 1)
+						LogWarning("The %s has been specified for %uth time, the last specification is used", *arg);;
+				
+					arg_advance(argc, arg);
+					break;
+				}
+			}
+
+			if (found)
+				break;
+
+			++cmdOption;
+		}
+
+		switch (cmdOption->Type) {
+			case otUnknown:
+				ret = -1;
+				LogError("Unknown option %s", *arg);
+				break;
+			case otSourceHost:
+				_sourceAddress = *arg;
+				break;
+			case otSourcePort:
+				_sourceService = *arg;
+				break;
+			case otTargetHost:
+				_targetAddress = *arg;
+				break;
+			case otTargetPort:
+				_targetService = *arg;
+				break;
+			case otIPv4Only:
+				_addressFamily = AF_INET;
+				break;
+			case otIPv6Only:
+				_addressFamily = AF_INET6;
+				break;
+			case otLogError:
+				_loggingFlags |= LOG_FLAG_ERROR;
+				break;
+			case otLogWarning:
+				_loggingFlags |= LOG_FLAG_WARNING;
+				break;
+			case otLogInfo:
+				_loggingFlags |= LOG_FLAG_INFO;
+				break;
+			case otLogPacket:
+				_loggingFlags |= LOG_FLAG_PACKET;
+				break;
+			case otLogPacketData:
+				_loggingFlags |= LOG_FLAG_PACKET_DATA;
+				break;
+		}
+
+		if (ret == 0 && cmdOption->ArgumentCount > 0) {
+			for (size_t i = 0; i < cmdOption->ArgumentCount; ++i)
+				arg_advance(argc, arg);
+		}
 	}
 
 	switch (ret) {
