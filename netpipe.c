@@ -57,10 +57,10 @@ typedef struct _CHANNEL_END {
 #define LOG_FLAG_PACKET			8
 #define LOG_FLAG_PACKET_DATA	0x10
 
-static char *_sourceAddress = "0.0.0.0";
-static char *_sourceService = "1337";
-static char *_targetAddress = "jadro-windows.cz";
-static char *_targetService = "22222";
+static char *_sourceAddress = NULL;
+static char *_sourceService = NULL;
+static char *_targetAddress = NULL;
+static char *_targetService = NULL;
 static ECommEndType _sourceMode = cetAccept;
 static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
@@ -403,6 +403,26 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			break;
+	}
+
+	if (_sourceAddress == NULL) {
+		fprintf(stderr, "Source host not specified\n");
+		return -1;
+	}
+
+	if (_sourceService == NULL) {
+		fprintf(stderr, "Source port not specified\n");
+		return -1;
+	}
+
+	if (_targetAddress == NULL) {
+		fprintf(stderr, "Target host not specified\n");
+		return -1;
+	}
+
+	if (_targetService == NULL) {
+		fprintf(stderr, "Target port not specified\n");
+		return -1;
 	}
 
 #ifdef _WIN32
