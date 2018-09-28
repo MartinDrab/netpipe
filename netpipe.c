@@ -9,30 +9,34 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #else
+#include <stdarg.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #endif
 
 
 
 
-#ifndef INVALID_SOCKET
-#define INVALID_SOCKET				-1
-#endif
-#ifndef SOCKET_ERROR
-#define SOCKET_ERROR				-1
-#endif
 #ifndef _WIN32
 #define closesocket(a)				close(a)
+#define SD_RECEIVE				SHUT_RD
+#define SD_SEND					SHUT_WR
+#define SD_BOTH					SHUT_RDWR
+#define SOCKET_ERROR				-1
+#define INVALID_SOCKET				-1
+#define SOCKET						int
+#else
+typedef size_t ssize_t;
 #endif
 
 
 typedef struct _CHANNEL_DATA {
-	int SourceSocket;
-	int DestSocket;
+	SOCKET SourceSocket;
+	SOCKET DestSocket;
 	char *SourceAddress;
 	char *DestAddress;
 	struct timeval Timeout;
@@ -48,7 +52,7 @@ typedef struct _CHANNEL_END {
 	char *Address;
 	char *Service;
 	char *AcceptAddress;
-	int EndSocket;
+	SOCKET EndSocket;
 } CHANNEL_END, *PCHANNEL_END;
 
 #define LOG_FLAG_ERROR			1
@@ -106,33 +110,32 @@ static void _LogMsg(uint32_t Level, const char *Format, ...)
 #else
 
 #define Log(aLevel, aFormat, ...)	\
-	_LogMsg(aLevel, "[%u]: " aFormat "\n", getpid() __VA_OPT__(,) __VA_ARGS__)
+	_LogMsg(aLevel, "[%u]: " aFormat "\n", getpid(), __VA_ARGS__)
 
 #define LogError(aFormat, ...)	 \
-	Log(LOG_FLAG_ERROR, aFormat __VA_OPT__(,) __VA_ARGS__)
+	Log(LOG_FLAG_ERROR, aFormat, __VA_ARGS__)
 
 #define LogWarning(aFormat, ...)	 \
-	Log(LOG_FLAG_WARNING, aFormat __VA_OPT__(,) __VA_ARGS__)
+	Log(LOG_FLAG_WARNING, aFormat, __VA_ARGS__)
 
 #define LogInfo(aFormat, ...)	 \
-	Log(LOG_FLAG_INFO, aFormat __VA_OPT__(,) __VA_ARGS__)
+	Log(LOG_FLAG_INFO, aFormat, __VA_ARGS__)
 
 #define LogPacket(aFormat, ...)	 \
-	Log(LOG_FLAG_PACKET, aFormat __VA_OPT__(,) __VA_ARGS__)
+	Log(LOG_FLAG_PACKET, aFormat, __VA_ARGS__)
 
 #endif
 
 static void _ProcessChannel(PCHANNEL_DATA Data)
 {
 	int ret = 0;
-	int len = 0;
+	ssize_t len = 0;
 	fd_set fds;
 	char dataBuffer[1024];
 
 	LogInfo("Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
 		len = 0;
-		fds.fd_count = 2;
 		FD_ZERO(&fds);
 		FD_SET(Data->SourceSocket, &fds);
 		FD_SET(Data->DestSocket, &fds);
@@ -142,7 +145,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
 					LogPacket("<<< %u bytes received", len);
-					len = send(Data->DestSocket, dataBuffer, len, 0);
+					len = send(Data->DestSocket, dataBuffer, (size_t)len, 0);
 					if (len >= 0)
 						LogPacket(">>> %u bytes sent", len);
 				}
@@ -155,7 +158,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				len = recv(Data->DestSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
 					LogPacket(">>> %u bytes received", len);
-					len = send(Data->SourceSocket, dataBuffer, len, 0);
+					len = send(Data->SourceSocket, dataBuffer, (size_t)len, 0);
 					if (len >= 0)
 						LogPacket("<<< %u bytes sent", len);
 				}
@@ -238,7 +241,7 @@ char *sockaddrstr(const struct sockaddr *Addr)
 static int _PrepareChannelEnd(PCHANNEL_END End)
 {
 	int ret = 0;
-	int sock = INVALID_SOCKET;
+	SOCKET sock = INVALID_SOCKET;
 	struct addrinfo hints;
 	struct addrinfo *addrs;
 	struct sockaddr_storage acceptAddr;
@@ -547,7 +550,7 @@ int main(int argc, char *argv[])
 
 					} else ret = GetLastError();
 #else
-					ret = forck();
+					ret = fork();
 					if (ret > 0) {
 						closesocket(d->DestSocket);
 						closesocket(d->SourceSocket);
