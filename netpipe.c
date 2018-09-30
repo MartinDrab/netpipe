@@ -390,7 +390,7 @@ int main(int argc, char *argv[])
 		int found = 0;
 		PCOMMAND_LINE_OPTION cmdOption = _cmdOptions;
 
-		for (size_t i = 0; i < sizeof(_cmdOptions) / sizeof(_cmdOptions) - 1; ++i) {
+		for (size_t i = 0; i < sizeof(_cmdOptions) / sizeof(_cmdOptions[0]) - 1; ++i) {
 			for (size_t j = 0; j < cmdOption->NameCount; ++j) {
 				found = (strcmp(*arg, cmdOption->Names[j]) == 0);
 				if (found) {
