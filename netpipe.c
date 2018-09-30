@@ -95,36 +95,26 @@ static void _LogMsg(uint32_t Level, const char *Format, ...)
 #define Log(aLevel, aFormat, ...)	\
 	_LogMsg(aLevel, "[%u]: " aFormat "\n", GetCurrentThreadId(), __VA_ARGS__)
 
-#define LogError(aFormat, ...)	 \
-	Log(LOG_FLAG_ERROR, aFormat, __VA_ARGS__)
-
-#define LogWarning(aFormat, ...)	 \
-	Log(LOG_FLAG_WARNING, aFormat, __VA_ARGS__)
-
-#define LogInfo(aFormat, ...)	 \
-	Log(LOG_FLAG_INFO, aFormat, __VA_ARGS__)
-
-#define LogPacket(aFormat, ...)	 \
-	Log(LOG_FLAG_PACKET, aFormat, __VA_ARGS__)
-
 #else
 
 #define Log(aLevel, aFormat, ...)	\
 	_LogMsg(aLevel, "[%u]: " aFormat "\n", getpid(), __VA_ARGS__)
 
+#endif
+
 #define LogError(aFormat, ...)	 \
-	Log(LOG_FLAG_ERROR, aFormat, __VA_ARGS__)
+	Log(LOG_FLAG_ERROR, aFormat, __VA_ARGS__ + 0)
 
 #define LogWarning(aFormat, ...)	 \
-	Log(LOG_FLAG_WARNING, aFormat, __VA_ARGS__)
+	Log(LOG_FLAG_WARNING, aFormat, __VA_ARGS__ + 0)
 
 #define LogInfo(aFormat, ...)	 \
-	Log(LOG_FLAG_INFO, aFormat, __VA_ARGS__)
+	Log(LOG_FLAG_INFO, aFormat, __VA_ARGS__ + 0)
 
 #define LogPacket(aFormat, ...)	 \
-	Log(LOG_FLAG_PACKET, aFormat, __VA_ARGS__)
+	Log(LOG_FLAG_PACKET, aFormat, __VA_ARGS__ + 0)
 
-#endif
+
 
 static void _ProcessChannel(PCHANNEL_DATA Data)
 {
