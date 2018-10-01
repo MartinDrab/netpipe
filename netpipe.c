@@ -30,7 +30,7 @@
 #define INVALID_SOCKET				-1
 #define SOCKET						int
 #else
-typedef size_t ssize_t;
+typedef int ssize_t;
 #endif
 
 
@@ -135,7 +135,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
 					LogPacket("<<< %u bytes received", len);
-					len = send(Data->DestSocket, dataBuffer, (size_t)len, 0);
+					len = send(Data->DestSocket, dataBuffer, len, 0);
 					if (len >= 0)
 						LogPacket(">>> %u bytes sent", len);
 				}
@@ -148,7 +148,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				len = recv(Data->DestSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
 					LogPacket(">>> %u bytes received", len);
-					len = send(Data->SourceSocket, dataBuffer, (size_t)len, 0);
+					len = send(Data->SourceSocket, dataBuffer, len, 0);
 					if (len >= 0)
 						LogPacket("<<< %u bytes sent", len);
 				}
