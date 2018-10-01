@@ -330,6 +330,8 @@ typedef enum _EOptionType {
 	otLogWarning,
 	otLogInfo,
 	otLogPacket,
+	otHelp,
+	otVersion,
 	otLogPacketData,
 } EOptionType, *PEOptionType;
 
@@ -342,9 +344,9 @@ typedef struct _COMMAND_LINE_OPTION{
 } COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
 
 static COMMAND_LINE_OPTION _cmdOptions[] = {
-	{otSourceHost, 0, 1, 2, {"-h", "--source-host"}},
+	{otSourceHost, 0, 1, 2, {"-d", "--source-host"}},
 	{otSourcePort, 0, 1, 2, {"-p", "--source-port"}},
-	{otTargetHost, 0, 1, 2, {"-H", "--target-host"}},
+	{otTargetHost, 0, 1, 2, {"-D", "--target-host"}},
 	{otTargetPort, 0, 1, 2, {"-P", "--target-port"}},
 	{otIPv4Only, 0, 0, 1, {"-4"}},
 	{otIPv6Only, 0, 0, 1, {"-6"}},
@@ -353,8 +355,39 @@ static COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otLogInfo, 0, 0, 1, {"--log-info"}},
 	{otLogPacket, 0, 0, 1, {"--log-packet"}},
 	{otLogPacketData, 0, 0, 1, {"--log-packet-data"}},
+	{otHelp, 0, 0, 2, {"-h", "--help"}},
+	{otVersion, 0, 0, 2, {"-v", "--version"}},
 	{otUnknown, 0, 0, 0},
 };
+
+
+void usage(void)
+{
+	fprintf(stderr, "Usage: netpipe <mode> [options]\n");
+	fprintf(stderr, "Supported modes:\n");
+	fprintf(stderr, "  aa - accept connection from both source and destination\n");
+	fprintf(stderr, "  ac - accept connection from the source, make connection to the target\n");
+	fprintf(stderr, "  ca - make connection to the source, accept connection from the target\n");
+	fprintf(stderr, "  cc - connect to both source and target\n");
+	fprintf(stderr, "The connection to the target is established only after the source connection\n");
+	fprintf(stderr, "Options:\n");
+	fprintf(stderr, "-d, --source-host <string> Domain/address of the source end\n");
+	fprintf(stderr, "-p, --source-port <integer> Source port\n");
+	fprintf(stderr, "-D, --target-host <string> Domain/address of the target end\n");
+	fprintf(stderr, "-P, --target-port <integer> Target port\n");
+	fprintf(stderr, "-4 - Use only IPv4\n");
+	fprintf(stderr, "-6 - Use only IPv6\n");
+	fprintf(stderr, "--log-error - Log error messages\n");
+	fprintf(stderr, "--log-warning - Log warnings\n");
+	fprintf(stderr, "--log-info - Log information-level messages\n");
+	fprintf(stderr, "--log-packet - Log lengths of sent and received data\n");
+	fprintf(stderr, "--log-packet-data Log data of the transmitted packets\n");
+	fprintf(stderr, "-h, --help - Show this help\n");
+	fprintf(stderr, "-v, --version - Show version information\n");
+
+	return;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -362,7 +395,7 @@ int main(int argc, char *argv[])
 	char *mode = NULL;
 
 	if (argc < 2) {
-		fprintf(stderr, "Usage: netpipe <mode> [options]\n");
+		usage();
 		return -1;
 	}
 
