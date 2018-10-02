@@ -122,7 +122,11 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	int ret = 0;
 	ssize_t len = 0;
 	fd_set fds;
+	int nfds = (int)Data->DestSocket + 1;
 	char dataBuffer[1024];
+
+	if ((int)Data->SourceSocket > (int)Data->DestSocket)
+		nfds = (int)Data->SourceSocket;
 
 	LogInfo("Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
@@ -130,7 +134,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 		FD_ZERO(&fds);
 		FD_SET(Data->SourceSocket, &fds);
 		FD_SET(Data->DestSocket, &fds);
-		ret = select(0, &fds, NULL, NULL, NULL);
+		ret = select(nfds, &fds, NULL, NULL, NULL);
 		if (ret > 0) {
 			if (FD_ISSET(Data->SourceSocket, &fds)) {
 				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
