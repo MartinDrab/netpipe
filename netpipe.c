@@ -53,6 +53,7 @@ typedef struct _CHANNEL_END {
 	char *Service;
 	char *AcceptAddress;
 	SOCKET EndSocket;
+	SOCKET ListenSocket;
 } CHANNEL_END, *PCHANNEL_END;
 
 #define LOG_FLAG_ERROR			1
@@ -252,23 +253,30 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 		if (sock != INVALID_SOCKET) {
 			switch (End->Type) {
 				case cetAccept:
-					LogInfo("Binding the socket");
-					ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
-					if (ret == 0) {
-						LogInfo("Listening");
-						ret = listen(sock, 0);
-						if (ret == -1)
-							LogError("Error %u", errno);
-					} else LogError("Error %u", errno);
+					if (End->ListenSocket == INVALID_SOCKET) {
+						LogInfo("Binding the socket");
+						ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+						if (ret == 0) {
+							LogInfo("Listening");
+							ret = listen(sock, 0);
+							if (ret == -1)
+								LogError("Error %u", errno);
+						} else LogError("Error %u", errno);
+					}
 
 					if (ret == 0) {
 						LogInfo("Accepting");
-						End->EndSocket = accept(sock, (struct sockaddr *)&acceptAddr, &acceptAddrLen);
+						End->EndSocket = accept((End->ListenSocket != INVALID_SOCKET ? End->ListenSocket : sock), (struct sockaddr *)&acceptAddr, &acceptAddrLen);
 						if (End->EndSocket != INVALID_SOCKET) {
 							End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
-							if (End->AcceptAddress != NULL)
+							if (End->AcceptAddress != NULL) {
 								LogInfo("Accepted a connection from %s", End->AcceptAddress);
-							
+								if (End->ListenSocket == INVALID_SOCKET) {
+									End->ListenSocket = sock;
+									sock = INVALID_SOCKET;
+								}
+							}
+
 							if (End->AcceptAddress == NULL) {
 								LogError("Out of memory");
 								closesocket(End->EndSocket);
@@ -537,20 +545,24 @@ int main(int argc, char *argv[])
 	}
 
 #endif
-	while (1) {
-		CHANNEL_END source;
-		CHANNEL_END dest;
+	CHANNEL_END source;
+	CHANNEL_END dest;
 
-		memset(&source, 0, sizeof(source));
+	memset(&source, 0, sizeof(source));
+	source.ListenSocket = INVALID_SOCKET;
+	memset(&dest, 0, sizeof(dest));
+	dest.ListenSocket = INVALID_SOCKET;
+	while (1) {
 		source.Type = _sourceMode;
 		source.Address = _sourceAddress;
 		source.Service = _sourceService;
+		source.EndSocket = INVALID_SOCKET;
 		ret = _PrepareChannelEnd(&source);
 		if (ret == 0) {
-			memset(&dest, 0, sizeof(dest));
 			dest.Type = _targetMode;
 			dest.Address = _targetAddress;
 			dest.Service = _targetService;
+			dest.EndSocket = INVALID_SOCKET;
 			ret = _PrepareChannelEnd(&dest);
 			if (ret == 0) {
 				PCHANNEL_DATA d = NULL;
