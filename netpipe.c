@@ -73,6 +73,8 @@ static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING);
 static int _keepAlive = 0;
 static int _addressFamily = AF_UNSPEC;
 static int _oneConnection = 0;
+static int _help = 0;
+static int _version = 0;
 
 
 static void _LogMsg(uint32_t Level, const char *Format, ...)
@@ -525,6 +527,12 @@ int main(int argc, char *argv[])
 			case otOneConnection:
 				_oneConnection = 1;
 				break;
+			case otHelp:
+				_help = 1;
+				break;
+			case otVersion:
+				_version = 1;
+				break;
 		}
 
 		if (ret == 0 && cmdOption->ArgumentCount > 0) {
@@ -544,6 +552,16 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			break;
+	}
+
+	if (_help) {
+		usage();
+		return 0;
+	}
+
+	if (_version) {
+		fprintf(stderr, "NetPipe v1.0\n");
+		return 0;
 	}
 
 	if (_sourceAddress == NULL) {
