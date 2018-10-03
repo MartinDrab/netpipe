@@ -72,6 +72,7 @@ static uint32_t _timeout = 1;
 static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING);
 static int _keepAlive = 0;
 static int _addressFamily = AF_UNSPEC;
+static int _oneConnection = 0;
 
 
 static void _LogMsg(uint32_t Level, const char *Format, ...)
@@ -363,6 +364,7 @@ typedef enum _EOptionType {
 	otLogWarning,
 	otLogInfo,
 	otLogPacket,
+	otOneConnection,
 	otHelp,
 	otVersion,
 	otLogPacketData,
@@ -388,6 +390,7 @@ static COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otLogInfo, 0, 0, 1, {"--log-info"}},
 	{otLogPacket, 0, 0, 1, {"--log-packet"}},
 	{otLogPacketData, 0, 0, 1, {"--log-packet-data"}},
+	{otOneConnection, 0, 0, 1, {"-1"}},
 	{otHelp, 0, 0, 2, {"-h", "--help"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
 	{otUnknown, 0, 0, 0},
@@ -519,6 +522,9 @@ int main(int argc, char *argv[])
 			case otLogPacketData:
 				_loggingFlags |= LOG_FLAG_PACKET_DATA;
 				break;
+			case otOneConnection:
+				_oneConnection = 1;
+				break;
 		}
 
 		if (ret == 0 && cmdOption->ArgumentCount > 0) {
@@ -606,19 +612,22 @@ int main(int argc, char *argv[])
 
 					threadHandle = CreateThread(NULL, 0, _ChannelThreadWrapper, d, 0, &threadId);
 					if (threadHandle != NULL) {
-						CloseHandle(threadHandle);
+						if (_oneConnection)
+							WaitForSingleObject(threadHandle, INFINITE);
 
-					}
-					else ret = GetLastError();
+						CloseHandle(threadHandle);
+					} else ret = GetLastError();
 #else
 					ret = fork();
 					if (ret > 0) {
 						closesocket(d->DestSocket);
 						closesocket(d->SourceSocket);
 						free(d);
+						if (_oneConnection)
+							waitpid(ret, &ret, 0);
+						
 						ret = 0;
-					}
-					else if (ret == 0) {
+					} else if (ret == 0) {
 						_ProcessChannel(d);
 						return 0;
 					}
