@@ -393,7 +393,7 @@ static COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otLogInfo, 0, 0, 1, {"--log-info"}},
 	{otLogPacket, 0, 0, 1, {"--log-packet"}},
 	{otLogPacketData, 0, 0, 1, {"--log-packet-data"}},
-	{otOneConnection, 0, 0, 1, {"-1"}},
+	{otOneConnection, 0, 0, 2, {"-1", "--single-connection"}},
 	{otKeepAlive, 0, 0, 2, {"-k", "--keep-alive"}},
 	{otHelp, 0, 0, 2, {"-h", "--help"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
