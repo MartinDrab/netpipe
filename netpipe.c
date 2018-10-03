@@ -422,6 +422,8 @@ void usage(void)
 	fprintf(stderr, "--log-info - Log information-level messages\n");
 	fprintf(stderr, "--log-packet - Log lengths of sent and received data\n");
 	fprintf(stderr, "--log-packet-data Log data of the transmitted packets\n");
+	fprintf(stderr, "-1, --single-connection Allow at most one connection established between the source and the target at any moment\n");
+	fprintf(stderr, "-k, --keep-alive Use the keep-alive feature of the TCP protocol\n");
 	fprintf(stderr, "-h, --help - Show this help\n");
 	fprintf(stderr, "-v, --version - Show version information\n");
 
