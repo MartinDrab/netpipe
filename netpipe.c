@@ -375,7 +375,7 @@ typedef enum _EOptionType {
 typedef struct _COMMAND_LINE_OPTION{
 	EOptionType Type;
 	int Specified;
-	size_t ArgumentCount;
+	int ArgumentCount;
 	size_t NameCount;
 	char *Names[2];
 } COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
@@ -536,7 +536,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (ret == 0 && cmdOption->ArgumentCount > 0) {
-			for (size_t i = 0; i < cmdOption->ArgumentCount; ++i)
+			for (int i = 0; i < cmdOption->ArgumentCount; ++i)
 				arg_advance(argc, arg);
 		}
 	}
