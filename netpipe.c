@@ -22,7 +22,7 @@
 
 
 #ifndef _WIN32
-#define closesocket(a)				close(a)
+#define closesocket(a)			close(a)
 #define SD_RECEIVE				SHUT_RD
 #define SD_SEND					SHUT_WR
 #define SD_BOTH					SHUT_RDWR
@@ -258,14 +258,35 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 			switch (End->Type) {
 				case cetAccept:
 					if (End->ListenSocket == INVALID_SOCKET) {
-						LogInfo("Binding the socket");
-						ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+#ifndef _WIN32
+						int reuse = 1;
+
+						LogInfo("Allowing to reuse the socket address...");
+						ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse));
+						if (ret == SOCKET_ERROR) {
+							LogError("Error %u", errno);
+							ret = 0;
+						}
+
 						if (ret == 0) {
-							LogInfo("Listening");
-							ret = listen(sock, 0);
-							if (ret == -1)
+							LogInfo("Allowing to reuse the socket port...");
+							ret = setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&reuse, sizeof(reuse));
+							if (ret == SOCKET_ERROR) {
 								LogError("Error %u", errno);
-						} else LogError("Error %u", errno);
+								ret = 0;
+							}
+						}
+#endif
+						if (ret == 0) {
+							LogInfo("Binding the socket");
+							ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+							if (ret == 0) {
+								LogInfo("Listening");
+								ret = listen(sock, 0);
+								if (ret == -1)
+									LogError("Error %u", errno);
+							} else LogError("Error %u", errno);
+						}
 					}
 
 					if (ret == 0) {
@@ -587,7 +608,8 @@ int main(int argc, char *argv[])
 					if (threadHandle != NULL) {
 						CloseHandle(threadHandle);
 
-					} else ret = GetLastError();
+					}
+					else ret = GetLastError();
 #else
 					ret = fork();
 					if (ret > 0) {
@@ -595,14 +617,21 @@ int main(int argc, char *argv[])
 						closesocket(d->SourceSocket);
 						free(d);
 						ret = 0;
-					} else if (ret == 0) {
+					}
+					else if (ret == 0) {
 						_ProcessChannel(d);
 						return 0;
 					}
 #endif
 					if (ret != 0)
 						free(d);
-				} else ret = ENOMEM;
+				}
+				else ret = ENOMEM;
+
+				if (dest.ListenSocket != INVALID_SOCKET) {
+					closesocket(dest.ListenSocket);
+					dest.ListenSocket = INVALID_SOCKET;
+				}
 
 				if (ret != 0)
 					closesocket(dest.EndSocket);
