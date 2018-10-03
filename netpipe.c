@@ -367,6 +367,7 @@ typedef enum _EOptionType {
 	otLogInfo,
 	otLogPacket,
 	otOneConnection,
+	otKeepAlive,
 	otHelp,
 	otVersion,
 	otLogPacketData,
@@ -393,6 +394,7 @@ static COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otLogPacket, 0, 0, 1, {"--log-packet"}},
 	{otLogPacketData, 0, 0, 1, {"--log-packet-data"}},
 	{otOneConnection, 0, 0, 1, {"-1"}},
+	{otKeepAlive, 0, 0, 2, {"-k", "--keep-alive"}},
 	{otHelp, 0, 0, 2, {"-h", "--help"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
 	{otUnknown, 0, 0, 0},
@@ -532,6 +534,9 @@ int main(int argc, char *argv[])
 				break;
 			case otVersion:
 				_version = 1;
+				break;
+			case otKeepAlive:
+				_keepAlive = 1;
 				break;
 		}
 
