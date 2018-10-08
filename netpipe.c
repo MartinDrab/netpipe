@@ -126,7 +126,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	ssize_t len = 0;
 	fd_set fds;
 	int nfds = (int)Data->DestSocket + 1;
-	char dataBuffer[1024];
+	char dataBuffer[4096];
 
 	if ((int)Data->SourceSocket > (int)Data->DestSocket)
 		nfds = (int)Data->SourceSocket;
