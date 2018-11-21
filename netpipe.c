@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <poll.h>
 #endif
 
 
@@ -26,11 +27,13 @@
 #define SD_RECEIVE				SHUT_RD
 #define SD_SEND					SHUT_WR
 #define SD_BOTH					SHUT_RDWR
-#define SOCKET_ERROR				-1
-#define INVALID_SOCKET				-1
-#define SOCKET						int
+#define SOCKET_ERROR			-1
+#define INVALID_SOCKET			-1
+#define SOCKET					int
 #else
 typedef int ssize_t;
+#define poll(a, b, c)			WSAPoll(a, b, c)
+#define pollfd					WSAPOLLFD
 #endif
 
 
@@ -124,22 +127,29 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 {
 	int ret = 0;
 	ssize_t len = 0;
-	fd_set fds;
-	int nfds = (int)Data->DestSocket + 1;
+	pollfd fds[2];
 	char dataBuffer[4096];
 
-	if ((int)Data->SourceSocket > (int)Data->DestSocket)
-		nfds = (int)Data->SourceSocket;
 
+	memset(fds, 0, sizeof(fds));
+	fds[0].fd = Data->SourceSocket;
+	fds[0].events = POLLIN;
+	fds[1].fd = Data->DestSocket;
+	fds[1].events = POLLIN;
 	LogInfo("Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
 		len = 0;
-		FD_ZERO(&fds);
-		FD_SET(Data->SourceSocket, &fds);
-		FD_SET(Data->DestSocket, &fds);
-		ret = select(nfds, &fds, NULL, NULL, NULL);
+		fds[0].revents = 0;
+		fds[1].revents = 0;
+		ret = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
 		if (ret > 0) {
-			if (FD_ISSET(Data->SourceSocket, &fds)) {
+			if ((fds[0].revents & POLLERR) ||
+				(fds[1].revents & POLLERR)) {
+				LogError("Error occurred during channel processing");
+				break;
+			}
+
+			if (fds[0].revents & POLLIN) {
 				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
 					LogPacket("<<< %u bytes received", len);
@@ -152,7 +162,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 					ret = -1;
 			}
 
-			if (FD_ISSET(Data->DestSocket, &fds)) {
+			if (fds[1].revents & POLLIN) {
 				len = recv(Data->DestSocket, dataBuffer, sizeof(dataBuffer), 0);
 				if (len > 0) {
 					LogPacket(">>> %u bytes received", len);
@@ -164,15 +174,17 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				if (len == -1)
 					ret = -1;
 			}
+
+			if ((fds[0].revents & POLLHUP) ||
+				(fds[1].revents & POLLHUP)) {
+				LogInfo("Connection closed");
+				break;
+			}
 		} else if (ret == SOCKET_ERROR && errno == EINTR) {
 			ret = 0;
 			len = 1;
 		}
-	} while (len > 0 && ret >= 0);
-
-	if (len == -1 || ret == SOCKET_ERROR)
-		LogError("Error %u", errno);
-	else LogInfo("Closing");
+	} while (len >= 0 && ret >= 0);
 
 	shutdown(Data->DestSocket, SD_BOTH);
 	closesocket(Data->DestSocket);
