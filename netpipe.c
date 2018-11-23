@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netdb.h>
 #include <sys/wait.h>
 #include <poll.h>
@@ -56,6 +57,7 @@ typedef struct _CHANNEL_END {
 	char *Address;
 	char *Service;
 	char *AcceptAddress;
+	int AddressFamily;
 	SOCKET EndSocket;
 	SOCKET ListenSocket;
 } CHANNEL_END, *PCHANNEL_END;
@@ -75,7 +77,8 @@ static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
 static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING);
 static int _keepAlive = 0;
-static int _addressFamily = AF_UNSPEC;
+static int _sourceAddressFamily = AF_UNSPEC;
+static int _destAddressFamily = AF_UNSPEC;
 static int _oneConnection = 0;
 static int _help = 0;
 static int _version = 0;
@@ -128,9 +131,12 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 {
 	int ret = 0;
 	ssize_t len = 0;
+#ifndef _WIN32
+	struct pollfd fds[2];
+#else
 	pollfd fds[2];
+#endif
 	char dataBuffer[4096];
-
 
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = Data->SourceSocket;
@@ -252,24 +258,47 @@ char *sockaddrstr(const struct sockaddr *Addr)
 static int _PrepareChannelEnd(PCHANNEL_END End)
 {
 	int ret = 0;
+	int af = AF_UNSPEC;
 	SOCKET sock = INVALID_SOCKET;
 	struct addrinfo hints;
 	struct addrinfo *addrs;
 	struct sockaddr_storage acceptAddr;
 	int acceptAddrLen = sizeof(acceptAddr);
+	struct sockaddr *genAddr = NULL;
+	socklen_t genAddrLen = 0;
+#ifndef _WIN32
+	struct sockaddr_un *unixAddress = NULL;
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = _addressFamily;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	LogInfo("Looking for %s:%s", End->Address, End->Service);
-	ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
-	if (ret == 0 && addrs->ai_family != AF_INET && addrs->ai_family != AF_INET6)
-		ret = -1;
-	
+	if (End->AddressFamily != AF_UNIX) {
+#endif
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = End->AddressFamily;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = 0;
+		LogInfo("Looking for %s:%s", End->Address, End->Service);
+		ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
+		af = addrs->ai_family;
+		genAddr = addrs->ai_addr;
+		genAddrLen = addrs->ai_addrlen;
+		if (ret == 0 && af != AF_INET && af != AF_INET6)
+			ret = -1;
+#ifndef _WIN32
+	} else {
+		af = AF_UNIX;
+		unixAddress = (struct sockaddr_un *)malloc(sizeof(struct sockaddr_un));
+		if (unixAddress != NULL) {
+			memset(unixAddress, 0, sizeof(struct sockaddr_un));
+			unixAddress->sun_family = AF_UNIX;
+			memcpy(unixAddress->sun_path, End->Address, strlen(End->Address));
+			genAddr = (struct sockaddr *)unixAddress;
+			genAddrLen = SUN_LEN(unixAddress);
+		} else ret = ENOMEM;
+	}
+#endif
+
 	if (ret == 0) {
 		LogInfo("Creating a socket");
-		sock = socket(addrs->ai_family, SOCK_STREAM, IPPROTO_TCP);
+		sock = socket(af, SOCK_STREAM, 0);
 		if (sock != INVALID_SOCKET) {
 			switch (End->Type) {
 				case cetAccept:
@@ -295,7 +324,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 #endif
 						if (ret == 0) {
 							LogInfo("Binding the socket");
-							ret = bind(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+							ret = bind(sock, genAddr, genAddrLen);
 							if (ret == 0) {
 								LogInfo("Listening");
 								ret = listen(sock, 0);
@@ -329,10 +358,10 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 					}
 					break;
 				case cetConnect:
-					End->AcceptAddress = sockaddrstr(addrs->ai_addr);
+					End->AcceptAddress = sockaddrstr(genAddr);
 					if (End->AcceptAddress != NULL) {
 						LogInfo("Connesting to %s (%s)", End->Address, End->AcceptAddress);
-						ret = connect(sock, addrs->ai_addr, (int)addrs->ai_addrlen);
+						ret = connect(sock, genAddr, genAddrLen);
 						if (ret == 0) {
 							End->EndSocket = sock;
 							sock = INVALID_SOCKET;
@@ -348,7 +377,12 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 				closesocket(sock);
 		} else LogError("Error %u", errno);
 
-		freeaddrinfo(addrs);
+#ifndef _WIN32
+		if (End->AddressFamily == AF_UNIX)
+			free(unixAddress);
+		else
+#endif
+			freeaddrinfo(addrs);
 	}
 
 	if (ret == 0 && _keepAlive) {
@@ -384,6 +418,10 @@ typedef enum _EOptionType {
 	otHelp,
 	otVersion,
 	otLogPacketData,
+#ifndef _WIN32
+	otUnixSource,
+	otUnixDest,
+#endif
 } EOptionType, *PEOptionType;
 
 typedef struct _COMMAND_LINE_OPTION{
@@ -411,6 +449,10 @@ static COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otHelp, 0, 0, 2, {"-h", "--help"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
 	{otUnknown, 0, 0, 0},
+#ifndef _WIN32
+	{otUnixSource, 0, 0, 2, {"-u", "--unix-source"}},
+	{otUnixDest, 0, 0, 2, {"-U", "--unix-dest"}},
+#endif
 };
 
 
@@ -435,6 +477,10 @@ void usage(void)
 	fprintf(stderr, "--log-info - Log information-level messages\n");
 	fprintf(stderr, "--log-packet - Log lengths of sent and received data\n");
 	fprintf(stderr, "--log-packet-data Log data of the transmitted packets\n");
+#ifndef _WIN32
+	fprintf(stderr, "-u, --unix-source The source is an Unix domain socket\n");
+	fprintf(stderr, "-U, --unix-dest The dest is an Unix domain socket\n");
+#endif
 	fprintf(stderr, "-1, --single-connection Allow at most one connection established between the source and the target at any moment\n");
 	fprintf(stderr, "-k, --keep-alive Use the keep-alive feature of the TCP protocol\n");
 	fprintf(stderr, "-h, --help - Show this help\n");
@@ -521,10 +567,12 @@ int main(int argc, char *argv[])
 				_targetService = *arg;
 				break;
 			case otIPv4Only:
-				_addressFamily = AF_INET;
+				_sourceAddressFamily = AF_INET;
+				_destAddressFamily = AF_INET;
 				break;
 			case otIPv6Only:
-				_addressFamily = AF_INET6;
+				_sourceAddressFamily = AF_INET6;
+				_destAddressFamily = AF_INET6;
 				break;
 			case otLogError:
 				_loggingFlags |= LOG_FLAG_ERROR;
@@ -553,6 +601,14 @@ int main(int argc, char *argv[])
 			case otKeepAlive:
 				_keepAlive = 1;
 				break;
+#ifndef _WIN32
+			case otUnixSource:
+				_sourceAddressFamily = AF_UNIX;
+				break;
+			case otUnixDest:
+				_destAddressFamily = AF_UNIX;
+				break;
+#endif
 		}
 
 		if (ret == 0 && cmdOption->ArgumentCount > 0) {
@@ -589,7 +645,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (_sourceService == NULL) {
+	if (_sourceAddressFamily != AF_UNIX && _sourceService == NULL) {
 		fprintf(stderr, "Source port not specified\n");
 		return -1;
 	}
@@ -599,7 +655,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (_targetService == NULL) {
+	if (_destAddressFamily != AF_UNIX && _targetService == NULL) {
 		fprintf(stderr, "Target port not specified\n");
 		return -1;
 	}
@@ -623,12 +679,14 @@ int main(int argc, char *argv[])
 	dest.ListenSocket = INVALID_SOCKET;
 	while (1) {
 		source.Type = _sourceMode;
+		source.AddressFamily = _sourceAddressFamily;
 		source.Address = _sourceAddress;
 		source.Service = _sourceService;
 		source.EndSocket = INVALID_SOCKET;
 		ret = _PrepareChannelEnd(&source);
 		if (ret == 0) {
 			dest.Type = _targetMode;
+			dest.AddressFamily = _destAddressFamily;
 			dest.Address = _targetAddress;
 			dest.Service = _targetService;
 			dest.EndSocket = INVALID_SOCKET;
