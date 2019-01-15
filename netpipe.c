@@ -277,9 +277,12 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 		hints.ai_protocol = 0;
 		LogInfo("Looking for %s:%s", End->Address, End->Service);
 		ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
-		af = addrs->ai_family;
-		genAddr = addrs->ai_addr;
-		genAddrLen = addrs->ai_addrlen;
+		if (ret == 0) {
+			af = addrs->ai_family;
+			genAddr = addrs->ai_addr;
+			genAddrLen = addrs->ai_addrlen;
+		}
+
 		if (ret == 0 && af != AF_INET && af != AF_INET6)
 			ret = -1;
 #ifndef _WIN32
