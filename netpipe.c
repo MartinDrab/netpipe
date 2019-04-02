@@ -20,7 +20,7 @@
 #include <sys/wait.h>
 #include <poll.h>
 #endif
-
+#include "logging.h"
 
 
 
@@ -62,11 +62,6 @@ typedef struct _CHANNEL_END {
 	SOCKET ListenSocket;
 } CHANNEL_END, *PCHANNEL_END;
 
-#define LOG_FLAG_ERROR			1
-#define LOG_FLAG_WARNING		2
-#define LOG_FLAG_INFO			4
-#define LOG_FLAG_PACKET			8
-#define LOG_FLAG_PACKET_DATA	0x10
 
 static char *_sourceAddress = NULL;
 static char *_sourceService = NULL;
@@ -75,55 +70,12 @@ static char *_targetService = NULL;
 static ECommEndType _sourceMode = cetAccept;
 static ECommEndType _targetMode = cetConnect;
 static uint32_t _timeout = 1;
-static uint32_t _loggingFlags = (LOG_FLAG_ERROR | LOG_FLAG_WARNING);
 static int _keepAlive = 0;
 static int _sourceAddressFamily = AF_UNSPEC;
 static int _destAddressFamily = AF_UNSPEC;
 static int _oneConnection = 0;
 static int _help = 0;
 static int _version = 0;
-
-
-static void _LogMsg(uint32_t Level, const char *Format, ...)
-{
-	va_list vs;
-	char msg[4096];
-
-	if (_loggingFlags & Level) {
-		memset(msg, 0, sizeof(msg));
-		va_start(vs, Format);
-		vsnprintf(msg, sizeof(msg), Format, vs);
-		fputs(msg, stderr);
-		va_end(vs);
-	}
-
-	return;
-}
-
-
-#ifdef _WIN32
-
-#define Log(aLevel, aFormat, ...)	\
-	_LogMsg(aLevel, "[%u]: " aFormat "\n", GetCurrentThreadId(), __VA_ARGS__)
-
-#else
-
-#define Log(aLevel, aFormat, ...)	\
-	_LogMsg(aLevel, "[%u]: " aFormat "\n", getpid(), __VA_ARGS__)
-
-#endif
-
-#define LogError(aFormat, ...)	 \
-	Log(LOG_FLAG_ERROR, aFormat, __VA_ARGS__ + 0)
-
-#define LogWarning(aFormat, ...)	 \
-	Log(LOG_FLAG_WARNING, aFormat, __VA_ARGS__ + 0)
-
-#define LogInfo(aFormat, ...)	 \
-	Log(LOG_FLAG_INFO, aFormat, __VA_ARGS__ + 0)
-
-#define LogPacket(aFormat, ...)	 \
-	Log(LOG_FLAG_PACKET, aFormat, __VA_ARGS__ + 0)
 
 
 
