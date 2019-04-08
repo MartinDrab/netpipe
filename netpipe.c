@@ -4,39 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#ifdef _WIN32
-#include <WinSock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-#else
-#include <stdarg.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <netdb.h>
-#include <sys/wait.h>
-#include <poll.h>
-#endif
+#include "compat-header.h"
+#include "auth.h"
 #include "logging.h"
 
-
-
-#ifndef _WIN32
-#define closesocket(a)			close(a)
-#define SD_RECEIVE				SHUT_RD
-#define SD_SEND					SHUT_WR
-#define SD_BOTH					SHUT_RDWR
-#define SOCKET_ERROR			-1
-#define INVALID_SOCKET			-1
-#define SOCKET					int
-#else
-typedef int ssize_t;
-#define poll(a, b, c)			WSAPoll(a, b, c)
-#define pollfd					WSAPOLLFD
-#endif
 
 
 typedef struct _CHANNEL_DATA {
@@ -60,6 +31,7 @@ typedef struct _CHANNEL_END {
 	int AddressFamily;
 	SOCKET EndSocket;
 	SOCKET ListenSocket;
+	char *Password;
 } CHANNEL_END, *PCHANNEL_END;
 
 
@@ -74,6 +46,8 @@ static int _keepAlive = 0;
 static int _sourceAddressFamily = AF_UNSPEC;
 static int _destAddressFamily = AF_UNSPEC;
 static int _oneConnection = 0;
+static char *_sourcePassword = NULL;
+static char *_targetPassword = NULL;
 static int _help = 0;
 static int _version = 0;
 
@@ -348,6 +322,14 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 		}
 	}
 
+	if (ret == 0 && End->Password != NULL) {
+		ret = AuthSocket(End->EndSocket, End->Password);
+		if (ret != 0) {
+			free(End->AcceptAddress);
+			closesocket(End->EndSocket);
+		}
+	}
+
 	return ret;
 }
 
@@ -373,6 +355,8 @@ typedef enum _EOptionType {
 	otHelp,
 	otVersion,
 	otLogPacketData,
+	otAuthSource,
+	otAuthTarget,
 #ifndef _WIN32
 	otUnixSource,
 	otUnixDest,
@@ -402,6 +386,8 @@ static COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otOneConnection, 0, 0, 2, {"-1", "--single-connection"}},
 	{otKeepAlive, 0, 0, 2, {"-k", "--keep-alive"}},
 	{otHelp, 0, 0, 2, {"-h", "--help"}},
+	{otAuthSource, 0, 1, 2, {"-a", "--auth-source"}},
+	{otAuthTarget, 0, 1, 2, {"-A", "--auth-target"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
 	{otUnknown, 0, 0, 0},
 #ifndef _WIN32
@@ -556,6 +542,12 @@ int main(int argc, char *argv[])
 			case otKeepAlive:
 				_keepAlive = 1;
 				break;
+			case otAuthSource:
+				_sourcePassword = *arg;
+				break;
+			case otAuthTarget:
+				_targetPassword = *arg;
+				break;
 #ifndef _WIN32
 			case otUnixSource:
 				_sourceAddressFamily = AF_UNIX;
@@ -638,6 +630,7 @@ int main(int argc, char *argv[])
 		source.Address = _sourceAddress;
 		source.Service = _sourceService;
 		source.EndSocket = INVALID_SOCKET;
+		source.Password = _sourcePassword;
 		ret = _PrepareChannelEnd(&source);
 		if (ret == 0) {
 			dest.Type = _targetMode;
@@ -645,6 +638,7 @@ int main(int argc, char *argv[])
 			dest.Address = _targetAddress;
 			dest.Service = _targetService;
 			dest.EndSocket = INVALID_SOCKET;
+			dest.Password = _targetPassword;
 			ret = _PrepareChannelEnd(&dest);
 			if (ret == 0) {
 				PCHANNEL_DATA d = NULL;
