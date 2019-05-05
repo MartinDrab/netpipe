@@ -30,6 +30,9 @@
     <ClCompile Include="auth.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="randomness.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="aes.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="compat-header.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="randomness.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

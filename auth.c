@@ -3,17 +3,18 @@
 #include "aes.h"
 #include "sha2.h"
 #include "logging.h"
+#include "randomness.h"
 #include "auth.h"
 
 
 
 
-static void _generateSalt(unsigned char Salt[16])
-{
-	for (size_t i = 0; i < 16; ++i)
-		Salt[i] = rand();
 
-	return;
+
+
+static int _generateSalt(unsigned char Salt[16])
+{
+	return RandomBuffer(Salt, 16);
 }
 
 
@@ -73,6 +74,12 @@ int AuthSocket(SOCKET Socket, const char *Password)
 	struct timeval timeout;
 	AES_Ctx aesCtx;
 
+	ret = _generateSalt(ourChallenge);
+	if (ret != 0) {
+		LogError("[AUTH]: Unable to generate our challenge: %i", ret);;
+		goto Exit;
+	}
+
 	timeout.tv_sec = 5;
 	timeout.tv_usec = 0;
 	ret = setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
@@ -89,7 +96,6 @@ int AuthSocket(SOCKET Socket, const char *Password)
 		goto Exit;
 	}
 
-	_generateSalt(ourChallenge);
 	ret = send(Socket, ourChallenge, sizeof(ourChallenge), 0);
 	if (ret != sizeof(ourChallenge)) {
 		ret = errno;

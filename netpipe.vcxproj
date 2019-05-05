@@ -23,6 +23,7 @@
     <ClCompile Include="auth.c" />
     <ClCompile Include="logging.c" />
     <ClCompile Include="netpipe.c" />
+    <ClCompile Include="randomness.c" />
     <ClCompile Include="sha2.c" />
   </ItemGroup>
   <ItemGroup>
@@ -30,6 +31,7 @@
     <ClInclude Include="auth.h" />
     <ClInclude Include="compat-header.h" />
     <ClInclude Include="logging.h" />
+    <ClInclude Include="randomness.h" />
     <ClInclude Include="sha2.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
