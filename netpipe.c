@@ -331,48 +331,13 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 #define arg_advance(aArgc, aArg)	\
 	{ --aArgc; ++aArg;  }
 
-
-
-typedef enum _EOptionType {
-	otUnknown,
-	otSourceHost,
-	otSourcePort,
-	otTargetHost,
-	otTargetPort,
-	otIPv4Only,
-	otIPv6Only,
-	otLogError,
-	otLogWarning,
-	otLogInfo,
-	otLogPacket,
-	otOneConnection,
-	otKeepAlive,
-	otHelp,
-	otVersion,
-	otLogPacketData,
-	otAuthSource,
-	otAuthTarget,
-#ifndef _WIN32
-	otUnixSource,
-	otUnixDest,
-#endif
-} EOptionType, *PEOptionType;
-
-typedef struct _COMMAND_LINE_OPTION{
-	EOptionType Type;
-	int Specified;
-	int ArgumentCount;
-	size_t NameCount;
-	char *Names[2];
-} COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
-
-static COMMAND_LINE_OPTION _cmdOptions[] = {
+COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otSourceHost, 0, 1, 2, {"-d", "--source-host"}},
 	{otSourcePort, 0, 1, 2, {"-p", "--source-port"}},
 	{otTargetHost, 0, 1, 2, {"-D", "--target-host"}},
 	{otTargetPort, 0, 1, 2, {"-P", "--target-port"}},
-	{otIPv4Only, 0, 0, 1, {"-4"}},
-	{otIPv6Only, 0, 0, 1, {"-6"}},
+	{otIPv4Only, 0, 0, 2, {"-4", "--ipv4-only"}},
+	{otIPv6Only, 0, 0, 2, {"-6", "--ipv6-only"}},
 	{otLogError, 0, 0, 1, {"--log-error"}},
 	{otLogWarning, 0, 0, 1, {"--log-warning"}},
 	{otLogInfo, 0, 0, 1, {"--log-info"}},
