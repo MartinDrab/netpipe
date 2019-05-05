@@ -10,6 +10,7 @@
 static SERVICE_STATUS _statusRecord;
 static SERVICE_STATUS_HANDLE _statusHandle = NULL;
 static HANDLE _exitEventHandle = NULL;
+static BOOL _testRun = FALSE;
 
 
 static DWORD _ReportError(const char *Text, DWORD Code)
@@ -126,26 +127,42 @@ void WINAPI ServiceMain(DWORD argc, LPWSTR *argv)
 	int argCount = 0;
 	char **args = NULL;
 
-	memset(&_statusRecord, 0, sizeof(_statusRecord));
-	_statusHandle = RegisterServiceCtrlHandlerExW(L"Netpipe", _NetpipeServiceHandlerEx, NULL);
-	if (_statusHandle != NULL) {
-		_statusRecord.dwCurrentState = SERVICE_START_PENDING;
-		_statusRecord.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-		SetServiceStatus(_statusHandle, &_statusRecord);
+	if (!_testRun) {
+		memset(&_statusRecord, 0, sizeof(_statusRecord));
+		_statusHandle = RegisterServiceCtrlHandlerExW(L"Netpipe", _NetpipeServiceHandlerEx, NULL);
+		if (_statusHandle != NULL) {
+			_statusRecord.dwCurrentState = SERVICE_START_PENDING;
+			_statusRecord.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+			if (SetServiceStatus(_statusHandle, &_statusRecord)) {
+				_exitEventHandle = CreateEventW(NULL, TRUE, FALSE, NULL);
+				if (_exitEventHandle == NULL) {
+					_statusRecord.dwCurrentState = SERVICE_STOPPED;
+					SetServiceStatus(_statusHandle, &_statusRecord);
+				}
+			}
+
+			if (_exitEventHandle == NULL)
+				_statusHandle = NULL;
+		}
+	}
+
+	if (_testRun || _statusHandle != NULL) {
 		dwError = _LoadSettings(&argCount, &args);
 		if (dwError == ERROR_SUCCESS) {
-			_exitEventHandle = CreateEventW(NULL, TRUE, FALSE, NULL);
-			if (_exitEventHandle != NULL) {
+			if (!_testRun) {
 				_statusRecord.dwCurrentState = SERVICE_RUNNING;
-				_statusRecord.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SESSIONCHANGE;
+				_statusRecord.dwControlsAccepted = SERVICE_ACCEPT_STOP;
 				SetServiceStatus(_statusHandle, &_statusRecord);
-				NetPipeMain(argCount, args);
+			}
+			
+			NetPipeMain(argCount, args);			
+			if (!_testRun) {
 				WaitForSingleObject(_exitEventHandle, INFINITE);
 				_statusRecord.dwCurrentState = SERVICE_STOPPED;
 				SetServiceStatus(_statusHandle, &_statusRecord);
 				CloseHandle(_exitEventHandle);
 			}
-		
+
 			for (int i = 1; i < argCount; ++i) {
 				if (args[i] != NULL)
 					HeapFree(GetProcessHeap(), 0, args[i]);
@@ -214,6 +231,9 @@ int main(int argc, char *argv[])
 
 					CloseServiceHandle(hScm);
 				} else ret = _ReportError("OpenSCManager", GetLastError());
+			} else if (_stricmp(argv[1], "/test") == 0) {
+				_testRun = TRUE;
+				ServiceMain(0, NULL);
 			}
 		} break;
 	}
