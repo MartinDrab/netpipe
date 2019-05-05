@@ -2,7 +2,7 @@
 #include "compat-header.h"
 #include "auth.h"
 #include "logging.h"
-
+#include "netpipe.h"
 
 
 typedef struct _CHANNEL_DATA {
@@ -426,7 +426,7 @@ void usage(void)
 }
 
 
-int main(int argc, char *argv[])
+int NetPipeMain(int argc, char *argv[])
 {
 	int ret = 0;
 	char *mode = NULL;

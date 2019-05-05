@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "netpipe", "netpipe.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "netpipe-linux", "netpipe-linux\netpipe-linux.vcxproj", "{A0A7F55E-4E29-4A99-B87B-1E048A997434}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "netpipe-svc", "netpipe-svc.vcxproj", "{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM = Debug|ARM
@@ -44,9 +46,20 @@ Global
 		{A0A7F55E-4E29-4A99-B87B-1E048A997434}.Release|ARM64.ActiveCfg = Release|ARM64
 		{A0A7F55E-4E29-4A99-B87B-1E048A997434}.Release|ARM64.Build.0 = Release|ARM64
 		{A0A7F55E-4E29-4A99-B87B-1E048A997434}.Release|x64.ActiveCfg = Release|x64
-		{A0A7F55E-4E29-4A99-B87B-1E048A997434}.Release|x64.Build.0 = Release|x64
 		{A0A7F55E-4E29-4A99-B87B-1E048A997434}.Release|x86.ActiveCfg = Release|x86
 		{A0A7F55E-4E29-4A99-B87B-1E048A997434}.Release|x86.Build.0 = Release|x86
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Debug|ARM.ActiveCfg = Debug|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Debug|ARM64.ActiveCfg = Debug|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Debug|x64.ActiveCfg = Debug|x64
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Debug|x64.Build.0 = Debug|x64
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Debug|x86.ActiveCfg = Debug|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Debug|x86.Build.0 = Debug|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Release|ARM.ActiveCfg = Release|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Release|ARM64.ActiveCfg = Release|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Release|x64.ActiveCfg = Release|x64
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Release|x64.Build.0 = Release|x64
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Release|x86.ActiveCfg = Release|Win32
+		{A094E4F8-4CA5-40F0-9D35-6D5A78009ADC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
