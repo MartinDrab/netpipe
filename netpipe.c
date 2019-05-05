@@ -1,9 +1,4 @@
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
 #include "compat-header.h"
 #include "auth.h"
 #include "logging.h"
