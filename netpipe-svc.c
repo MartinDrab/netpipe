@@ -88,7 +88,24 @@ int main(int argc, char *argv[])
 			SC_HANDLE hService = NULL;
 
 			if (_stricmp(argv[1], "/install") == 0) {
-
+				DWORD moduleNameLen = 0;
+				wchar_t moduleName[MAX_PATH];
+				
+				memset(moduleName, 0, sizeof(moduleName));
+				moduleNameLen = GetModuleFileNameW(NULL, moduleName, MAX_PATH);
+				if (moduleNameLen > 0) {
+					hScm = OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE | SC_MANAGER_CONNECT);
+					if (hScm != NULL) {
+						hService = CreateServiceW(hScm, L"NetPipe", L"Network to Network Pipe Service", SERVICE_ALL_ACCESS, SERVICE_WIN32 | SERVICE_WIN32_OWN_PROCESS, SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL, moduleName, NULL, NULL, NULL, NULL, NULL);
+						if (hService != NULL)
+							CloseServiceHandle(hService);
+						
+						if (hService == NULL && GetLastError() != ERROR_SERVICE_EXISTS)
+							_ReportError("CreateService", GetLastError());
+						
+						CloseServiceHandle(hScm);
+					} else _ReportError("OpenSCManager", GetLastError());
+				} else _ReportError("GetModuleFileName", GetLastError());
 			} else if (_stricmp(argv[1], "/uninstall") == 0) {
 				hScm = OpenSCManagerW(NULL, NULL, SC_MANAGER_CONNECT);
 				if (hScm != NULL) {
