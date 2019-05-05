@@ -38,7 +38,9 @@ typedef struct _COMMAND_LINE_OPTION {
 	char *Names[2];
 } COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
 
-extern COMMAND_LINE_OPTION _cmdOptions[];
+#ifdef _WIN32
+extern COMMAND_LINE_OPTION _cmdOptions[18];
+#endif
 
 
 int NetPipeMain(int argc, char *argv[]);

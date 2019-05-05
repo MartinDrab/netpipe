@@ -39,24 +39,119 @@ static DWORD WINAPI _NetpipeServiceHandlerEx(DWORD dwControl, DWORD dwEventType,
 }
 
 
+static DWORD _LoadSettings(int *argc, char ***argv)
+{
+	DWORD index = 0;
+	int tmpArgc = 0;
+	char **tmpArgv = NULL;
+	HKEY hParamsKey = NULL;
+	DWORD ret = ERROR_GEN_FAILURE;
+	const int maxArgs = sizeof(_cmdOptions) / sizeof(_cmdOptions[0]);
+
+	tmpArgv = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (2*maxArgs + 1)*sizeof(char *));
+	if (tmpArgv != NULL) {
+		tmpArgv[0] = "netpipe.exe";
+		tmpArgc = 1;
+		ret = RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Services\\Netpipe\\Parameters", 0, KEY_QUERY_VALUE, &hParamsKey);
+		if (ret == ERROR_SUCCESS) {
+			do {
+				BOOL argFound = FALSE;
+				char valueName[MAX_PATH];
+				char valueData[MAX_PATH + 1];
+				DWORD cbValueName = sizeof(valueName);
+				DWORD cbValueData = MAX_PATH;
+				PCOMMAND_LINE_OPTION cmdOpt = NULL;
+				size_t nameLen = 0;
+
+				memset(valueName, 0, sizeof(valueName));
+				memset(valueData, 0, sizeof(valueData));
+				ret = RegEnumValueA(hParamsKey, index - 1, valueName, &cbValueName, NULL, NULL, valueData, &cbValueData);
+				if (ret == ERROR_SUCCESS) {
+					cmdOpt = _cmdOptions;
+					for (size_t i = 0; i < maxArgs; ++i) {
+						for (size_t j = 0; j < cmdOpt->NameCount; ++j) {
+							nameLen = strlen(cmdOpt->Names[j]);
+							if (nameLen > 2 &&
+								!cmdOpt->Specified &&
+								cmdOpt->Names[j][0] == '-' &&
+								cmdOpt->Names[j][1] == '-') {
+								tmpArgv[tmpArgc] = cmdOpt->Names[j];
+								++tmpArgc;
+								if (cmdOpt->ArgumentCount == 1) {
+									tmpArgv[tmpArgc] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, cbValueData + sizeof(char));
+									if (tmpArgv[tmpArgc] != NULL) {
+										memcpy(tmpArgv[tmpArgc], valueData, cbValueData);
+										tmpArgv[tmpArgc][cbValueData] = '\0';
+										++tmpArgc;
+									} else ret = GetLastError();
+								}
+							
+								argFound = TRUE;
+								break;
+							}
+						}
+
+						++cmdOpt;
+						if (argFound)
+							break;
+					}
+				}
+
+				++index;
+			} while (ret == ERROR_SUCCESS && tmpArgc < 2*maxArgs + 1);
+
+			if (ret == ERROR_NO_MORE_ITEMS)
+				ret = ERROR_SUCCESS;
+			RegCloseKey(hParamsKey);
+		}
+		
+		if (ret != ERROR_SUCCESS) {
+			while (tmpArgc > 0) {
+				--tmpArgc;
+				if (tmpArgv[tmpArgc] != NULL)
+					HeapFree(GetProcessHeap(), 0, tmpArgv[tmpArgc]);
+			}
+			
+			HeapFree(GetProcessHeap(), 0, tmpArgv);
+		}
+	} else ret = GetLastError();
+
+	return ret;
+}
+
+
 void WINAPI ServiceMain(DWORD argc, LPWSTR *argv)
 {
+	DWORD dwError = 0;
+	int argCount = 0;
+	char **args = NULL;
+
 	memset(&_statusRecord, 0, sizeof(_statusRecord));
 	_statusHandle = RegisterServiceCtrlHandlerExW(L"Netpipe", _NetpipeServiceHandlerEx, NULL);
 	if (_statusHandle != NULL) {
 		_statusRecord.dwCurrentState = SERVICE_START_PENDING;
 		_statusRecord.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
 		SetServiceStatus(_statusHandle, &_statusRecord);
-		_exitEventHandle = CreateEventW(NULL, TRUE, FALSE, NULL);
-		if (_exitEventHandle != NULL) {
-			_statusRecord.dwCurrentState = SERVICE_RUNNING;
-			_statusRecord.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SESSIONCHANGE;
-			SetServiceStatus(_statusHandle, &_statusRecord);
-			NetPipeMain(0, NULL);
-			WaitForSingleObject(_exitEventHandle, INFINITE);
-			_statusRecord.dwCurrentState = SERVICE_STOPPED;
-			SetServiceStatus(_statusHandle, &_statusRecord);
-			CloseHandle(_exitEventHandle);
+		dwError = _LoadSettings(&argCount, &args);
+		if (dwError == ERROR_SUCCESS) {
+			_exitEventHandle = CreateEventW(NULL, TRUE, FALSE, NULL);
+			if (_exitEventHandle != NULL) {
+				_statusRecord.dwCurrentState = SERVICE_RUNNING;
+				_statusRecord.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SESSIONCHANGE;
+				SetServiceStatus(_statusHandle, &_statusRecord);
+				NetPipeMain(argCount, args);
+				WaitForSingleObject(_exitEventHandle, INFINITE);
+				_statusRecord.dwCurrentState = SERVICE_STOPPED;
+				SetServiceStatus(_statusHandle, &_statusRecord);
+				CloseHandle(_exitEventHandle);
+			}
+		
+			for (int i = 1; i < argCount; ++i) {
+				if (args[i] != NULL)
+					HeapFree(GetProcessHeap(), 0, args[i]);
+
+				HeapFree(GetProcessHeap(), 0, args);
+			}
 		}
 
 		if (_statusHandle != NULL) {
