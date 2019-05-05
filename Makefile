@@ -7,6 +7,7 @@ OBJ=\
 	$(OBJDIR)/auth.o	\
 	$(OBJDIR)/logging.o	\
 	$(OBJDIR)/netpipe.o	\
+	$(OBJDIR)/netpipe-app.o	\
 	$(OBJDIR)/randomness.o	\
 	$(OBJDIR)/sha2.o	\
 

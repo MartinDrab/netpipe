@@ -12,6 +12,14 @@ static SERVICE_STATUS_HANDLE _statusHandle = NULL;
 static HANDLE _exitEventHandle = NULL;
 
 
+static DWORD _ReportError(const char *Text, DWORD Code)
+{
+	fprintf(stderr, "%s: %u\n", Text, Code);
+
+	return Code;
+}
+
+
 static DWORD WINAPI _NetpipeServiceHandlerEx(DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID lpContext
 )
 {
@@ -64,13 +72,39 @@ void WINAPI ServiceMain(DWORD argc, LPWSTR *argv)
 int main(int argc, char *argv[])
 {
 	int ret = 0;
-	SERVICE_TABLE_ENTRYW svcTable[2];
 
-	memset(svcTable, 0, sizeof(svcTable));
-	svcTable[0].lpServiceName = L"Netpipe";
-	svcTable[0].lpServiceProc = ServiceMain;
-	if (!StartServiceCtrlDispatcherW(svcTable))
-		ret = GetLastError();
+	switch (argc) {
+		case 1: {
+			SERVICE_TABLE_ENTRYW svcTable[2];
+
+			memset(svcTable, 0, sizeof(svcTable));
+			svcTable[0].lpServiceName = L"Netpipe";
+			svcTable[0].lpServiceProc = ServiceMain;
+			if (!StartServiceCtrlDispatcherW(svcTable))
+				ret = GetLastError();
+		} break;
+		case 2: {
+			SC_HANDLE hScm = NULL;
+			SC_HANDLE hService = NULL;
+
+			if (_stricmp(argv[1], "/install") == 0) {
+
+			} else if (_stricmp(argv[1], "/uninstall") == 0) {
+				hScm = OpenSCManagerW(NULL, NULL, SC_MANAGER_CONNECT);
+				if (hScm != NULL) {
+					hService = OpenServiceW(hScm, L"NetPipe", DELETE);
+					if (hService != NULL) {
+						if (!DeleteService(hService))
+							ret = _ReportError("DeleteService", GetLastError());
+
+						CloseServiceHandle(hService);
+					} else ret = _ReportError("OpenService", GetLastError());
+
+					CloseServiceHandle(hScm);
+				} else ret = _ReportError("OpenSCManager", GetLastError());
+			}
+		} break;
+	}
 
 	return ret;
 }
