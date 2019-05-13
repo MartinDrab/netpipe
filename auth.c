@@ -67,12 +67,15 @@ int AuthSocket(SOCKET Socket, const char *Password)
 {
 	int ret = 0;
 	unsigned char ourChallenge[16];
+	unsigned char ourChallengeHash[32];
 	unsigned char otherChallenge[16];
+	unsigned char otherChallengeHash[32];
 	unsigned char salt[16];
 	unsigned char key[16];
 	unsigned char tmp[16];
 	struct timeval timeout;
 	AES_Ctx aesCtx;
+	sha256_ctx sha256Ctx;
 
 	ret = _generateSalt(ourChallenge);
 	if (ret != 0) {
@@ -110,8 +113,14 @@ int AuthSocket(SOCKET Socket, const char *Password)
 		goto Exit;
 	}
 
+	sha256_init(&sha256Ctx);
+	sha256_update(&sha256Ctx, ourChallenge, sizeof(ourChallenge));
+	sha256_final(&sha256Ctx, ourChallengeHash);
+	sha256_init(&sha256Ctx);
+	sha256_update(&sha256Ctx, otherChallenge, sizeof(otherChallenge));
+	sha256_final(&sha256Ctx, otherChallengeHash);
 	for (size_t i = 0; i < sizeof(salt) / sizeof(salt[0]); ++i)
-		salt[i] = ourChallenge[i] ^ otherChallenge[i];
+		salt[i] = ourChallengeHash[i] ^ otherChallengeHash[i];
 
 	AuthKeyGen(Password, salt, sizeof(salt), 65536, key);
 	_print16("our challenge", ourChallenge);
