@@ -45,7 +45,7 @@ static char *_sourcePassword = NULL;
 static char *_targetPassword = NULL;
 static int _help = 0;
 static int _version = 0;
-
+static char *_logFile = NULL;
 
 
 static void _ProcessChannel(PCHANNEL_DATA Data)
@@ -348,6 +348,7 @@ COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otHelp, 0, 0, 2, {"-h", "--help"}},
 	{otAuthSource, 0, 1, 2, {"-a", "--auth-source"}},
 	{otAuthTarget, 0, 1, 2, {"-A", "--auth-target"}},
+	{otLogFile, 0, 1, 2, {"-l", "--log-file"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
 	{otUnknown, 0, 0, 0},
 #ifndef _WIN32
@@ -508,6 +509,9 @@ int NetPipeMain(int argc, char *argv[])
 			case otAuthTarget:
 				_targetPassword = *arg;
 				break;
+			case otLogFile:
+				_logFile = *arg;
+				break;
 #ifndef _WIN32
 			case otUnixSource:
 				_sourceAddressFamily = AF_UNIX;
@@ -545,6 +549,14 @@ int NetPipeMain(int argc, char *argv[])
 	if (_version) {
 		fprintf(stderr, "NetPipe v1.0\n");
 		return 0;
+	}
+
+	if (_logFile != NULL) {
+		ret = LogSetFile(_logFile);
+		if (ret != 0) {
+			fprintf(stderr, "Failed to change log file: %u\n", ret);
+			return ret;
+		}
 	}
 
 	if (_sourceAddress == NULL) {

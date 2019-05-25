@@ -49,6 +49,7 @@ extern uint32_t _loggingFlags;
 
 
 void LogMsg(uint32_t Level, const char *Format, ...);
+int LogSetFile(const char *FileName);
 
 
 
