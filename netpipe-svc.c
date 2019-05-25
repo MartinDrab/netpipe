@@ -147,7 +147,24 @@ void WINAPI ServiceMain(DWORD argc, LPWSTR *argv)
 	}
 
 	if (_testRun || _statusHandle != NULL) {
-		dwError = _LoadSettings(&argCount, &args);
+		argCount = argc;
+		args = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, argCount*sizeof(char *));
+		if (args != NULL) {
+			for (int i = 0; i < argCount; ++i) {
+				args[i] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, wcslen(argv[i]) + 1);
+				if (args[i] != NULL) {
+					for (size_t j = 0; j < wcslen(argv[i]); ++j)
+						args[i][j] = (char)(argv[i][j]);
+				} else dwError = GetLastError();
+
+				if (dwError != ERROR_SUCCESS)
+					break;
+			}
+
+			if (dwError != ERROR_SUCCESS)
+				HeapFree(GetProcessHeap(), 0, args);
+		} else dwError = GetLastError();
+
 		if (dwError == ERROR_SUCCESS) {
 			if (!_testRun) {
 				_statusRecord.dwCurrentState = SERVICE_RUNNING;
