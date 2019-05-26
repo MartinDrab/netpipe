@@ -28,6 +28,7 @@ void LogMsg(uint32_t Level, const char *Format, ...)
 		va_start(vs, Format);
 		vsnprintf(msg, sizeof(msg), Format, vs);
 		fputs(msg, _logStream);
+		fflush(_logStream);
 		va_end(vs);
 	}
 
