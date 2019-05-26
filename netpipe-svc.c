@@ -11,6 +11,8 @@ static SERVICE_STATUS _statusRecord;
 static SERVICE_STATUS_HANDLE _statusHandle = NULL;
 static HANDLE _exitEventHandle = NULL;
 static BOOL _testRun = FALSE;
+static int _argc = 0;
+static char **_argv = NULL;
 
 
 static DWORD _ReportError(const char *Text, DWORD Code)
@@ -147,24 +149,8 @@ void WINAPI ServiceMain(DWORD argc, LPWSTR *argv)
 	}
 
 	if (_testRun || _statusHandle != NULL) {
-		argCount = argc;
-		args = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, argCount*sizeof(char *));
-		if (args != NULL) {
-			for (int i = 0; i < argCount; ++i) {
-				args[i] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, wcslen(argv[i]) + 1);
-				if (args[i] != NULL) {
-					for (size_t j = 0; j < wcslen(argv[i]); ++j)
-						args[i][j] = (char)(argv[i][j]);
-				} else dwError = GetLastError();
-
-				if (dwError != ERROR_SUCCESS)
-					break;
-			}
-
-			if (dwError != ERROR_SUCCESS)
-				HeapFree(GetProcessHeap(), 0, args);
-		} else dwError = GetLastError();
-
+		argCount = _argc;
+		args = _argv;
 		if (dwError == ERROR_SUCCESS) {
 			if (!_testRun) {
 				_statusRecord.dwCurrentState = SERVICE_RUNNING;
@@ -178,13 +164,6 @@ void WINAPI ServiceMain(DWORD argc, LPWSTR *argv)
 				_statusRecord.dwCurrentState = SERVICE_STOPPED;
 				SetServiceStatus(_statusHandle, &_statusRecord);
 				CloseHandle(_exitEventHandle);
-			}
-
-			for (int i = 1; i < argCount; ++i) {
-				if (args[i] != NULL)
-					HeapFree(GetProcessHeap(), 0, args[i]);
-
-				HeapFree(GetProcessHeap(), 0, args);
 			}
 		}
 
@@ -203,15 +182,6 @@ int main(int argc, char *argv[])
 	int ret = 0;
 
 	switch (argc) {
-		case 1: {
-			SERVICE_TABLE_ENTRYW svcTable[2];
-
-			memset(svcTable, 0, sizeof(svcTable));
-			svcTable[0].lpServiceName = L"Netpipe";
-			svcTable[0].lpServiceProc = ServiceMain;
-			if (!StartServiceCtrlDispatcherW(svcTable))
-				ret = GetLastError();
-		} break;
 		case 2: {
 			SC_HANDLE hScm = NULL;
 			SC_HANDLE hService = NULL;
@@ -225,7 +195,7 @@ int main(int argc, char *argv[])
 				if (moduleNameLen > 0) {
 					hScm = OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE | SC_MANAGER_CONNECT);
 					if (hScm != NULL) {
-						hService = CreateServiceW(hScm, L"NetPipe", L"Network to Network Pipe Service", SERVICE_ALL_ACCESS, SERVICE_WIN32 | SERVICE_WIN32_OWN_PROCESS, SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL, moduleName, NULL, NULL, NULL, NULL, NULL);
+						hService = CreateServiceW(hScm, L"NetPipe", L"Network to Network Pipe Service", SERVICE_ALL_ACCESS,  SERVICE_WIN32_OWN_PROCESS, SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL, moduleName, NULL, NULL, NULL, NULL, NULL);
 						if (hService != NULL)
 							CloseServiceHandle(hService);
 						
@@ -252,6 +222,17 @@ int main(int argc, char *argv[])
 				_testRun = TRUE;
 				ServiceMain(0, NULL);
 			}
+		default: {
+			SERVICE_TABLE_ENTRYW svcTable[2];
+
+			_argc = argc;
+			_argv = argv;
+			memset(svcTable, 0, sizeof(svcTable));
+			svcTable[0].lpServiceName = L"Netpipe";
+			svcTable[0].lpServiceProc = ServiceMain;
+			if (!StartServiceCtrlDispatcherW(svcTable))
+				ret = GetLastError();
+		} break;
 		} break;
 	}
 
