@@ -176,7 +176,7 @@ char *sockaddrstr(const struct sockaddr *Addr)
 }
 
 
-static int _PrepareChannelEnd(PCHANNEL_END End, BOOLEAN KeepListening)
+static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 {
 	int ret = 0;
 	int af = AF_UNSPEC;
