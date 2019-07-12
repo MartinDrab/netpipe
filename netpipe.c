@@ -611,7 +611,7 @@ int NetPipeMain(int argc, char *argv[])
 			dest.Service = _targetService;
 			dest.EndSocket = INVALID_SOCKET;
 			dest.Password = _targetPassword;
-			ret = _PrepareChannelEnd(&dest, FALSE);
+			ret = _PrepareChannelEnd(&dest, 0);
 			if (ret == 0) {
 				PCHANNEL_DATA d = NULL;
 
