@@ -176,7 +176,7 @@ char *sockaddrstr(const struct sockaddr *Addr)
 }
 
 
-static int _PrepareChannelEnd(PCHANNEL_END End)
+static int _PrepareChannelEnd(PCHANNEL_END End, BOOLEAN KeepListening)
 {
 	int ret = 0;
 	int af = AF_UNSPEC;
@@ -265,7 +265,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End)
 							End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
 							if (End->AcceptAddress != NULL) {
 								LogInfo("Accepted a connection from %s", End->AcceptAddress);
-								if (End->ListenSocket == INVALID_SOCKET) {
+								if (KeepListening && End->ListenSocket == INVALID_SOCKET) {
 									End->ListenSocket = sock;
 									sock = INVALID_SOCKET;
 								}
@@ -603,7 +603,7 @@ int NetPipeMain(int argc, char *argv[])
 		source.Service = _sourceService;
 		source.EndSocket = INVALID_SOCKET;
 		source.Password = _sourcePassword;
-		ret = _PrepareChannelEnd(&source);
+		ret = _PrepareChannelEnd(&source, !_oneConnection);
 		if (ret == 0) {
 			dest.Type = _targetMode;
 			dest.AddressFamily = _destAddressFamily;
@@ -611,7 +611,7 @@ int NetPipeMain(int argc, char *argv[])
 			dest.Service = _targetService;
 			dest.EndSocket = INVALID_SOCKET;
 			dest.Password = _targetPassword;
-			ret = _PrepareChannelEnd(&dest);
+			ret = _PrepareChannelEnd(&dest, FALSE);
 			if (ret == 0) {
 				PCHANNEL_DATA d = NULL;
 
