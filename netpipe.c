@@ -283,18 +283,19 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 									if (End->EndSocket != INVALID_SOCKET) {
 										End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
 										if (End->AcceptAddress != NULL) {
+											ret = 0;
 											LogInfo("Accepted a connection from %s", End->AcceptAddress);
 											if (KeepListening && End->ListenSocket == INVALID_SOCKET) {
 												End->ListenSocket = sock;
 												sock = INVALID_SOCKET;
 											}
-										}
+										} else ret = ENOMEM;
 
 										if (End->AcceptAddress == NULL) {
 											LogError("Out of memory");
 											closesocket(End->EndSocket);
 										}
-									}
+									} else ret = errno;
 
 									if (ret == 0)
 										break;
