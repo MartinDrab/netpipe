@@ -271,7 +271,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 						fds.events = POLLIN;
 						do {
 							fds.revents = 0;
-							ret = poll(&fds, sizeof(fds), 1000);
+							ret = poll(&fds, 1, 1000);
 							if (ret > 0) {
 								if (fds.revents & POLLERR) {
 									ret = -1;
@@ -295,6 +295,9 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 											closesocket(End->EndSocket);
 										}
 									}
+
+									if (ret == 0)
+										break;
 								}
 
 								if (fds.revents & POLLHUP)
