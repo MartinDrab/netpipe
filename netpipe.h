@@ -45,6 +45,7 @@ extern COMMAND_LINE_OPTION _cmdOptions[19];
 
 
 int NetPipeMain(int argc, char *argv[]);
+void NetPipeTerminate(void);
 
 
 

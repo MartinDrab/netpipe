@@ -32,6 +32,7 @@ static DWORD WINAPI _NetpipeServiceHandlerEx(DWORD dwControl, DWORD dwEventType,
 		case SERVICE_CONTROL_STOP:
 			_statusRecord.dwCurrentState = SERVICE_STOP_PENDING;
 			SetServiceStatus(_statusHandle, &_statusRecord);
+			NetPipeTerminate();
 			SetEvent(_exitEventHandle);
 			break;
 		default:

@@ -46,6 +46,7 @@ static char *_targetPassword = NULL;
 static int _help = 0;
 static int _version = 0;
 static char *_logFile = NULL;
+static volatile int _terminated = 0;
 
 
 static void _ProcessChannel(PCHANNEL_DATA Data)
@@ -69,7 +70,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 		len = 0;
 		fds[0].revents = 0;
 		fds[1].revents = 0;
-		ret = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
+		ret = poll(fds, sizeof(fds) / sizeof(fds[0]), 1000);
 		if (ret > 0) {
 			if ((fds[0].revents & POLLERR) ||
 				(fds[1].revents & POLLERR)) {
@@ -112,7 +113,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 			ret = 0;
 			len = 1;
 		}
-	} while (len >= 0 && ret >= 0);
+	} while (!_terminated && len >= 0 && ret >= 0);
 
 	shutdown(Data->DestSocket, SD_BOTH);
 	closesocket(Data->DestSocket);
@@ -259,23 +260,48 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 					}
 
 					if (ret == 0) {
+#ifndef _WIN32
+						struct pollfd fds;
+#else
+						pollfd fds;
+#endif
 						LogInfo("Accepting");
-						End->EndSocket = accept((End->ListenSocket != INVALID_SOCKET ? End->ListenSocket : sock), (struct sockaddr *)&acceptAddr, &acceptAddrLen);
-						if (End->EndSocket != INVALID_SOCKET) {
-							End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
-							if (End->AcceptAddress != NULL) {
-								LogInfo("Accepted a connection from %s", End->AcceptAddress);
-								if (KeepListening && End->ListenSocket == INVALID_SOCKET) {
-									End->ListenSocket = sock;
-									sock = INVALID_SOCKET;
+						memset(&fds, 0, sizeof(fds));
+						fds.fd = End->ListenSocket != INVALID_SOCKET ? End->ListenSocket : sock;
+						fds.events = POLLIN;
+						do {
+							fds.revents = 0;
+							ret = poll(&fds, sizeof(fds), 1000);
+							if (ret > 0) {
+								if (fds.revents & POLLERR) {
+									ret = -1;
+									break;
 								}
-							}
 
-							if (End->AcceptAddress == NULL) {
-								LogError("Out of memory");
-								closesocket(End->EndSocket);
-							}
-						}
+								if (fds.revents & POLLIN) {
+									End->EndSocket = accept((fds.fd), (struct sockaddr *)&acceptAddr, &acceptAddrLen);
+									if (End->EndSocket != INVALID_SOCKET) {
+										End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
+										if (End->AcceptAddress != NULL) {
+											LogInfo("Accepted a connection from %s", End->AcceptAddress);
+											if (KeepListening && End->ListenSocket == INVALID_SOCKET) {
+												End->ListenSocket = sock;
+												sock = INVALID_SOCKET;
+											}
+										}
+
+										if (End->AcceptAddress == NULL) {
+											LogError("Out of memory");
+											closesocket(End->EndSocket);
+										}
+									}
+								}
+
+								if (fds.revents & POLLHUP)
+									break;
+							} else if (ret == SOCKET_ERROR && errno == EINTR)
+								ret = 0;
+						} while (!_terminated && ret == 0);
 
 						if (End->EndSocket == INVALID_SOCKET)
 							ret = -1;
@@ -387,6 +413,14 @@ void usage(void)
 	fprintf(stderr, "-k, --keep-alive Use the keep-alive feature of the TCP protocol\n");
 	fprintf(stderr, "-h, --help - Show this help\n");
 	fprintf(stderr, "-v, --version - Show version information\n");
+
+	return;
+}
+
+
+void NetPipeTerminate(void)
+{
+	_terminated = 1;
 
 	return;
 }
@@ -596,7 +630,7 @@ int NetPipeMain(int argc, char *argv[])
 	source.ListenSocket = INVALID_SOCKET;
 	memset(&dest, 0, sizeof(dest));
 	dest.ListenSocket = INVALID_SOCKET;
-	while (1) {
+	while (!_terminated) {
 		source.Type = _sourceMode;
 		source.AddressFamily = _sourceAddressFamily;
 		source.Address = _sourceAddress;
