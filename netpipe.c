@@ -362,12 +362,14 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 		uint32_t domainLen = 0;
 		char *domain = NULL;
 
+		LogInfo("Receiving domain");
 		if (recv(End->EndSocket, (char *)&domainLen, sizeof(domainLen), 0) != sizeof(domainLen)) {
 			ret = errno;
 			LogError("Unable to get source domain length: %u", ret);
 		}
 
 		if (ret == 0) {
+			LogInfo("The domain len has %u characters", domainLen);
 			domain = (char *)malloc(domainLen + 1);
 			if (domain == NULL) {
 				ret = ENOMEM;
@@ -376,6 +378,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 			if (ret == 0) {
 				domain[domainLen] = '\0';
+				LogInfo("Received domain %s", domain);
 				if (recv(End->EndSocket, domain, domainLen, 0) != domainLen) {
 					ret = errno;
 					LogError("Failed to receive domain name: %u", ret);
@@ -398,6 +401,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 		uint32_t domainLen = 0;
 
 		domainLen = (uint32_t)strlen(_targetSendDomain);
+		LogInfo("Sending domain %s (%u)", _targetSendDomain, domainLen);
 		if (send(End->EndSocket, (char *)&domainLen, sizeof(domainLen), 0) != sizeof(domainLen)) {
 			ret = errno;
 			LogError("Failed to send domain length: %u", ret);
