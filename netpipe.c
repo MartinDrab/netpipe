@@ -378,13 +378,13 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 			if (ret == 0) {
 				domain[domainLen] = '\0';
-				LogInfo("Received domain %s", domain);
 				if (recv(End->EndSocket, domain, domainLen, 0) != domainLen) {
 					ret = errno;
 					LogError("Failed to receive domain name: %u", ret);
 				}
 
 				if (ret == 0) {
+					LogInfo("Received domain %s", domain);
 					if (_sourceSuppliedDomain != NULL)
 						free(_sourceSuppliedDomain);
 
