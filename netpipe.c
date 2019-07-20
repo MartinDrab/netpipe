@@ -355,8 +355,13 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 		}
 	}
 
-	if (ret == 0 && End->Password != NULL)
-		ret = AuthSocket(End->EndSocket, End->Password);
+	if (ret == 0 && End->Password != NULL) {
+		int success = 0;
+
+		ret = AuthSocket(End->EndSocket, End->Password, &success);
+		if (ret == 0 && !success)
+			ret = -1;
+	}
 
 	if (ret == 0 && ReceiveDomain) {
 		uint32_t domainLen = 0;

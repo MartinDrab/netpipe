@@ -63,7 +63,7 @@ void AuthKeyGen(const char *Password, unsigned char *Salt, unsigned int SaltLen,
 }
 
 
-int AuthSocket(SOCKET Socket, const char *Password)
+int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 {
 	int ret = 0;
 	unsigned char ourChallenge[16];
@@ -77,6 +77,7 @@ int AuthSocket(SOCKET Socket, const char *Password)
 	AES_Ctx aesCtx;
 	sha256_ctx sha256Ctx;
 
+	*Success = 0;
 	ret = _generateSalt(ourChallenge);
 	if (ret != 0) {
 		LogError("[AUTH]: Unable to generate our challenge: %i", ret);;
@@ -136,14 +137,14 @@ int AuthSocket(SOCKET Socket, const char *Password)
 	ret = send(Socket, tmp, sizeof(tmp), 0);
 	if (ret != sizeof(tmp)) {
 		ret = errno;
-		LogError("[AUTH]: Failed to send encrypted info: %i\n", ret);;
+		LogError("[AUTH]: Failed to send encrypted info: %i\n", ret);
 		goto Exit;
 	}
 
 	ret = recv(Socket, tmp, sizeof(tmp), MSG_WAITALL);
 	if (ret != sizeof(tmp)) {
 		ret = errno;
-		LogError("[AUTH]: Failed to receive encrypted info: %i\n", ret);;
+		LogError("[AUTH]: Failed to receive encrypted info: %i\n", ret);
 		goto Exit;
 	}
 	
@@ -159,6 +160,7 @@ int AuthSocket(SOCKET Socket, const char *Password)
 		LogError("[AUTH]: Authentication failed: %i\n", ret);;
 	}
 
+	*Success = (ret == 0);
 Exit:
 	return ret;
 }
