@@ -106,7 +106,7 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 		goto Exit;
 	}
 
-	if (recv(Socket, otherChallenge, sizeof(otherChallenge), MSG_WAITALL) != sizeof(otherChallenge)) {
+	if (recv(Socket, otherChallenge, sizeof(otherChallenge), 0) != sizeof(otherChallenge)) {
 		ret = errno;
 		LogError("[AUTH]: Failed to receive challenge: %i\n", ret);;
 		goto Exit;
@@ -138,7 +138,7 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 		goto Exit;
 	}
 
-	if (recv(Socket, tmp, sizeof(tmp), MSG_WAITALL) != sizeof(tmp)) {
+	if (recv(Socket, tmp, sizeof(tmp), 0) != sizeof(tmp)) {
 		ret = errno;
 		LogError("[AUTH]: Failed to receive encrypted info: %i\n", ret);
 		goto Exit;

@@ -179,6 +179,20 @@ char *sockaddrstr(const struct sockaddr *Addr)
 }
 
 
+static int _recv_fixed(SOCKET Socket, void *Buffer, size_t Length, int Flags)
+{
+	int ret = 0;
+
+	if (recv(Socket, Buffer, Length, Flags) != Length) {
+		ret = errno;
+		if (ret == 0)
+			ret = EINTR;
+	}
+
+	return ret;
+}
+
+
 static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDomain, int SendDomain)
 {
 	int ret = 0;
@@ -287,7 +301,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 								}
 
 								if (fds.revents & POLLIN) {
-									End->EndSocket = accept((fds.fd), (struct sockaddr *)&acceptAddr, &acceptAddrLen);
+									End->EndSocket = accept(fds.fd, (struct sockaddr *)&acceptAddr, &acceptAddrLen);
 									if (End->EndSocket != INVALID_SOCKET) {
 										End->AcceptAddress = sockaddrstr((struct sockaddr *)&acceptAddr);
 										if (End->AcceptAddress != NULL) {
@@ -349,10 +363,6 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 	if (ret == 0 && _keepAlive) {
 		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&_keepAlive, sizeof(_keepAlive));
-		if (ret == SOCKET_ERROR) {
-			free(End->AcceptAddress);
-			closesocket(End->EndSocket);
-		}
 	}
 
 	if (ret == 0 && End->Password != NULL) {
@@ -368,10 +378,9 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 		char *domain = NULL;
 
 		LogInfo("Receiving domain");
-		if (recv(End->EndSocket, (char *)&domainLen, sizeof(domainLen), 0) != sizeof(domainLen)) {
-			ret = errno;
+		ret = _recv_fixed(End->EndSocket, (char *)&domainLen, sizeof(domainLen), 0);
+		if (ret != 0)
 			LogError("Unable to get source domain length: %u", ret);
-		}
 
 		if (ret == 0) {
 			LogInfo("The domain len has %u characters", domainLen);
@@ -383,10 +392,9 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 			if (ret == 0) {
 				domain[domainLen] = '\0';
-				if (recv(End->EndSocket, domain, domainLen, 0) != domainLen) {
-					ret = errno;
+				ret = _recv_fixed(End->EndSocket, domain, domainLen, 0);
+				if (ret != 0)
 					LogError("Failed to receive domain name: %u", ret);
-				}
 
 				if (ret == 0) {
 					LogInfo("Received domain %s", domain);
