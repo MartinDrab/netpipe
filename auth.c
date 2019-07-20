@@ -48,7 +48,7 @@ void AuthKeyGen(const char *Password, unsigned char *Salt, unsigned int SaltLen,
 
 	sha256_init(&ctx);
 	sha256_update(&ctx, Salt, SaltLen);
-	sha256_update(&ctx, Password, (unsigned int)strlen(Password));
+	sha256_update(&ctx, (unsigned char *)Password, (unsigned int)strlen(Password));
 	for (size_t i = 0; i < IterationCount - 1; ++i) {
 		sha256_final(&ctx, digest);
 		sha256_init(&ctx);
@@ -75,7 +75,6 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 	unsigned char tmp[16];
 	struct timeval timeout;
 	AES_Ctx aesCtx;
-	sha256_ctx sha256Ctx;
 
 	*Success = 0;
 	ret = _generateSalt(ourChallenge);
@@ -84,6 +83,7 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 		goto Exit;
 	}
 
+	memset(&timeout, 0, sizeof(timeout));
 	timeout.tv_sec = 5;
 	timeout.tv_usec = 0;
 	ret = setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
@@ -112,12 +112,8 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 		goto Exit;
 	}
 
-	sha256_init(&sha256Ctx);
-	sha256_update(&sha256Ctx, ourChallenge, sizeof(ourChallenge));
-	sha256_final(&sha256Ctx, ourChallengeHash);
-	sha256_init(&sha256Ctx);
-	sha256_update(&sha256Ctx, otherChallenge, sizeof(otherChallenge));
-	sha256_final(&sha256Ctx, otherChallengeHash);
+	sha256(ourChallenge, sizeof(ourChallenge), ourChallengeHash);
+	sha256(otherChallenge, sizeof(otherChallenge), otherChallengeHash);
 	for (size_t i = 0; i < sizeof(salt) / sizeof(salt[0]); ++i)
 		salt[i] = ourChallengeHash[i] ^ otherChallengeHash[i];
 
