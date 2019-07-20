@@ -223,6 +223,9 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 		if (ret == 0) {
 			af = addrs->ai_family;
+			if (af == AF_UNSPEC)
+				af = End->AddressFamily;
+
 			genAddr = addrs->ai_addr;
 			genAddrLen = addrs->ai_addrlen;
 		} else ret = errno;
