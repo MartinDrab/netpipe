@@ -225,7 +225,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 			af = addrs->ai_family;
 			genAddr = addrs->ai_addr;
 			genAddrLen = addrs->ai_addrlen;
-		}
+		} else ret = errno;
 
 		if (ret == 0 && af != AF_INET && af != AF_INET6)
 			ret = -1;
