@@ -352,7 +352,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 			if (sock != INVALID_SOCKET)
 				closesocket(sock);
-		} else LogError("Error %u", errno);
+		} else ret = errno;
 
 #ifndef _WIN32
 		if (End->AddressFamily == AF_UNIX)
