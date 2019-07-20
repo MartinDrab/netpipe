@@ -47,7 +47,9 @@ static int _help = 0;
 static int _version = 0;
 static char *_logFile = NULL;
 static volatile int _terminated = 0;
-
+static char *_sourceSuppliedDomain = NULL;
+static int _sourceReceiveDomain = 0;
+static char *_targetSendDomain = NULL;
 
 static void _ProcessChannel(PCHANNEL_DATA Data)
 {
@@ -177,7 +179,7 @@ char *sockaddrstr(const struct sockaddr *Addr)
 }
 
 
-static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
+static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDomain, int SendDomain)
 {
 	int ret = 0;
 	int af = AF_UNSPEC;
@@ -197,8 +199,14 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 		hints.ai_family = End->AddressFamily;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = 0;
-		LogInfo("Looking for %s:%s", End->Address, End->Service);
-		ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
+		if (ReceiveDomain || _sourceSuppliedDomain == NULL) {
+			LogInfo("Looking for %s:%s", End->Address, End->Service);
+			ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
+		} else {
+			LogInfo("Looking for %s", _sourceSuppliedDomain);
+			ret = getaddrinfo(_sourceSuppliedDomain, NULL, &hints, &addrs);
+		}
+
 		if (ret == 0) {
 			af = addrs->ai_family;
 			genAddr = addrs->ai_addr;
@@ -347,12 +355,64 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening)
 		}
 	}
 
-	if (ret == 0 && End->Password != NULL) {
+	if (ret == 0 && End->Password != NULL)
 		ret = AuthSocket(End->EndSocket, End->Password);
-		if (ret != 0) {
-			free(End->AcceptAddress);
-			closesocket(End->EndSocket);
+
+	if (ret == 0 && ReceiveDomain) {
+		uint32_t domainLen = 0;
+		char *domain = NULL;
+
+		if (recv(End->EndSocket, (char *)&domainLen, sizeof(domainLen), 0) != sizeof(domainLen)) {
+			ret = errno;
+			LogError("Unable to get source domain length: %u", ret);
 		}
+
+		if (ret == 0) {
+			domain = (char *)malloc(domainLen + 1);
+			if (domain == NULL) {
+				ret = ENOMEM;
+				LogError("Unable to allocate space for the domain");
+			}
+
+			if (ret == 0) {
+				domain[domainLen] = '\0';
+				if (recv(End->EndSocket, domain, domainLen, 0) != domainLen) {
+					ret = errno;
+					LogError("Failed to receive domain name: %u", ret);
+				}
+
+				if (ret == 0) {
+					if (_sourceSuppliedDomain != NULL)
+						free(_sourceSuppliedDomain);
+
+					_sourceSuppliedDomain = domain;
+				}
+
+				if (ret != 0)
+					free(domain);
+			}
+		}
+	}
+
+	if (ret == 0 && SendDomain) {
+		uint32_t domainLen = 0;
+
+		domainLen = (uint32_t)strlen(_targetSendDomain);
+		if (send(End->EndSocket, (char *)&domainLen, sizeof(domainLen), 0) != sizeof(domainLen)) {
+			ret = errno;
+			LogError("Failed to send domain length: %u", ret);
+		}
+
+		if (ret == 0 &&
+			send(End->EndSocket, _targetSendDomain, domainLen, 0) != domainLen) {
+			ret = errno;
+			LogError("Failed to send domain: %u", ret);
+		}
+	}
+
+	if (ret != 0) {
+		free(End->AcceptAddress);
+		closesocket(End->EndSocket);
 	}
 
 	return ret;
@@ -380,11 +440,13 @@ COMMAND_LINE_OPTION _cmdOptions[] = {
 	{otAuthTarget, 0, 1, 2, {"-A", "--auth-target"}},
 	{otLogFile, 0, 1, 2, {"-l", "--log-file"}},
 	{otVersion, 0, 0, 2, {"-v", "--version"}},
-	{otUnknown, 0, 0, 0},
+	{otReceiveDomain, 0, 0, 2, {"-r", "--receive-domain"}},
+	{otSendDomain, 0, 1, 2, {"-S", "--send-domain"}},
 #ifndef _WIN32
 	{otUnixSource, 0, 0, 2, {"-u", "--unix-source"}},
 	{otUnixDest, 0, 0, 2, {"-U", "--unix-dest"}},
 #endif
+	{otUnknown, 0, 0, 0},
 };
 
 
@@ -550,6 +612,12 @@ int NetPipeMain(int argc, char *argv[])
 			case otLogFile:
 				_logFile = *arg;
 				break;
+			case otReceiveDomain:
+				_sourceReceiveDomain = 1;
+				break;
+			case otSendDomain:
+				_targetSendDomain = *arg;
+				break;
 #ifndef _WIN32
 			case otUnixSource:
 				_sourceAddressFamily = AF_UNIX;
@@ -641,7 +709,7 @@ int NetPipeMain(int argc, char *argv[])
 		source.Service = _sourceService;
 		source.EndSocket = INVALID_SOCKET;
 		source.Password = _sourcePassword;
-		ret = _PrepareChannelEnd(&source, !_oneConnection);
+		ret = _PrepareChannelEnd(&source, !_oneConnection, _sourceReceiveDomain, 0);
 		if (ret == 0) {
 			dest.Type = _targetMode;
 			dest.AddressFamily = _destAddressFamily;
@@ -649,7 +717,7 @@ int NetPipeMain(int argc, char *argv[])
 			dest.Service = _targetService;
 			dest.EndSocket = INVALID_SOCKET;
 			dest.Password = _targetPassword;
-			ret = _PrepareChannelEnd(&dest, 0);
+			ret = _PrepareChannelEnd(&dest, 0, 0, _targetSendDomain != NULL);
 			if (ret == 0) {
 				PCHANNEL_DATA d = NULL;
 

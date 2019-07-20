@@ -25,6 +25,8 @@ typedef enum _EOptionType {
 	otAuthSource,
 	otAuthTarget,
 	otLogFile,
+	otReceiveDomain,
+	otSendDomain,
 #ifndef _WIN32
 	otUnixSource,
 	otUnixDest,
@@ -40,7 +42,7 @@ typedef struct _COMMAND_LINE_OPTION {
 } COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
 
 #ifdef _WIN32
-extern COMMAND_LINE_OPTION _cmdOptions[19];
+extern COMMAND_LINE_OPTION _cmdOptions[21];
 #endif
 
 
