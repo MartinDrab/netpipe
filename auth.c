@@ -100,15 +100,13 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 		goto Exit;
 	}
 
-	ret = send(Socket, ourChallenge, sizeof(ourChallenge), 0);
-	if (ret != sizeof(ourChallenge)) {
+	if (send(Socket, ourChallenge, sizeof(ourChallenge), 0) != sizeof(ourChallenge)) {
 		ret = errno;
 		LogError("[AUTH]: Failed to sned challenge: %i\n", ret);;
 		goto Exit;
 	}
 
-	ret = recv(Socket, otherChallenge, sizeof(otherChallenge), MSG_WAITALL);
-	if (ret != sizeof(otherChallenge)) {
+	if (recv(Socket, otherChallenge, sizeof(otherChallenge), MSG_WAITALL) != sizeof(otherChallenge)) {
 		ret = errno;
 		LogError("[AUTH]: Failed to receive challenge: %i\n", ret);;
 		goto Exit;
@@ -134,15 +132,13 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 	AES_SetupEncrypt(&aesCtx, key, sizeof(key) * 8);
 	AES_Encrypt(&aesCtx, otherChallenge, sizeof(otherChallenge), tmp);
 	_print16("other encrypted", tmp);
-	ret = send(Socket, tmp, sizeof(tmp), 0);
-	if (ret != sizeof(tmp)) {
+	if (send(Socket, tmp, sizeof(tmp), 0) != sizeof(tmp)) {
 		ret = errno;
 		LogError("[AUTH]: Failed to send encrypted info: %i\n", ret);
 		goto Exit;
 	}
 
-	ret = recv(Socket, tmp, sizeof(tmp), MSG_WAITALL);
-	if (ret != sizeof(tmp)) {
+	if (recv(Socket, tmp, sizeof(tmp), MSG_WAITALL) != sizeof(tmp)) {
 		ret = errno;
 		LogError("[AUTH]: Failed to receive encrypted info: %i\n", ret);
 		goto Exit;
