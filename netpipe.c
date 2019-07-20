@@ -217,8 +217,22 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 			LogInfo("Looking for %s:%s", End->Address, End->Service);
 			ret = getaddrinfo(End->Address, End->Service, &hints, &addrs);
 		} else {
+			char *service = _sourceSuppliedDomain + strlen(_sourceSuppliedDomain);
+
 			LogInfo("Looking for %s", _sourceSuppliedDomain);
-			ret = getaddrinfo(_sourceSuppliedDomain, NULL, &hints, &addrs);
+			while (service != _sourceSuppliedDomain && *service != ':')
+				--service;
+
+			if (*service == ':') {
+				*service = '\0';
+				++service;
+			} else service = NULL;
+
+			ret = getaddrinfo(_sourceSuppliedDomain, service, &hints, &addrs);
+			if (service != NULL) {
+				--service;
+				*service = ':';
+			}
 		}
 
 		if (ret == 0) {
