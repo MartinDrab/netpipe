@@ -227,8 +227,10 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 			genAddrLen = addrs->ai_addrlen;
 		} else ret = errno;
 
-		if (ret == 0 && af != AF_INET && af != AF_INET6)
+		if (ret == 0 && af != AF_INET && af != AF_INET6) {
+			LogError("Unsupported address family %u", af);
 			ret = -1;
+		}
 #ifndef _WIN32
 	} else {
 		af = AF_UNIX;
