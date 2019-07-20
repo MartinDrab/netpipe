@@ -11,7 +11,7 @@ OBJ=\
 	$(OBJDIR)/randomness.o	\
 	$(OBJDIR)/sha2.o	\
 
-INCLUDE= -I./ -I-
+INCLUDE= -iquote ./
 
 $(OBJDIR)/%.o : %.c
 	@mkdir -p $(OBJDIR)
