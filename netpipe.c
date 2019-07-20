@@ -774,8 +774,7 @@ int NetPipeMain(int argc, char *argv[])
 #endif
 					if (ret != 0)
 						free(d);
-				}
-				else ret = ENOMEM;
+				} else ret = ENOMEM;
 
 				if (dest.ListenSocket != INVALID_SOCKET) {
 					closesocket(dest.ListenSocket);
@@ -784,11 +783,11 @@ int NetPipeMain(int argc, char *argv[])
 
 				if (ret != 0)
 					closesocket(dest.EndSocket);
-			}
+			} else LogError("Failed to prepare the target channel: %u", ret);
 
 			if (ret != 0)
 				closesocket(source.EndSocket);
-		}
+		} else LogError("Failed to prepare the source channel: %u", ret);
 
 #ifdef _WIN32
 		Sleep(_timeout * 1000);
