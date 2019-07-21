@@ -332,6 +332,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 										if (End->AcceptAddress == NULL) {
 											LogError("Out of memory");
 											closesocket(End->EndSocket);
+											End->EndSocket = INVALID_SOCKET;
 										}
 									} else ret = errno;
 
@@ -358,9 +359,6 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 							End->EndSocket = sock;
 							sock = INVALID_SOCKET;
 						}
-
-						if (ret == -1)
-							free(End->AcceptAddress);
 					} else LogError("Out of memory");
 					break;
 			}
