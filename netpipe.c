@@ -385,9 +385,11 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 		ret = 0;
 	}
 
-	ret = UtilsSetTimeouts(End->EndSocket, 5000);
-	if (ret != 0)
-		LogError("UtilsSetTimeouts: %u", ret);
+	if (ret == 0) {
+		ret = UtilsSetTimeouts(End->EndSocket, 5000);
+		if (ret != 0)
+			LogError("UtilsSetTimeouts: %u", ret);
+	}
 
 	if (ret == 0 && End->Password != NULL) {
 		int success = 0;
@@ -453,7 +455,8 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 	if (ret != 0) {
 		free(End->AcceptAddress);
-		closesocket(End->EndSocket);
+		if (End->EndSocket != INVALID_SOCKET)
+			closesocket(End->EndSocket);
 	}
 
 	return ret;
@@ -750,7 +753,7 @@ int NetPipeMain(int argc, char *argv[])
 		source.Service = _sourceService;
 		source.EndSocket = INVALID_SOCKET;
 		source.Password = _sourcePassword;
-		ret = _PrepareChannelEnd(&source, !_oneConnection, _sourceReceiveDomain, 0);
+		ret = _PrepareChannelEnd(&source, !_oneConnection, _sourceReceiveDomain, 0);		
 		if (ret == 0) {
 			dest.Type = _targetMode;
 			dest.AddressFamily = _destAddressFamily;
