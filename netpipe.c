@@ -385,7 +385,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 		ret = 0;
 	}
 
-	ret = UtilsSetTimeouts(sock, 5000);
+	ret = UtilsSetTimeouts(End->EndSocket, 5000);
 	if (ret != 0)
 		LogError("UtilsSetTimeouts: %u", ret);
 
