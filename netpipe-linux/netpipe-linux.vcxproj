@@ -106,6 +106,7 @@
     <ClCompile Include="..\netpipe.c" />
     <ClCompile Include="..\randomness.c" />
     <ClCompile Include="..\sha2.c" />
+    <ClCompile Include="..\utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\aes.h" />
@@ -115,6 +116,7 @@
     <ClInclude Include="..\netpipe.h" />
     <ClInclude Include="..\randomness.h" />
     <ClInclude Include="..\sha2.h" />
+    <ClInclude Include="..\utils.h" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <ClCompile>

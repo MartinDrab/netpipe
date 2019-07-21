@@ -10,6 +10,7 @@ OBJ=\
 	$(OBJDIR)/netpipe-app.o	\
 	$(OBJDIR)/randomness.o	\
 	$(OBJDIR)/sha2.o	\
+	$(OBJDIR)/utils.o	\
 
 INCLUDE= -iquote ./
 

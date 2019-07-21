@@ -73,38 +73,12 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 	unsigned char salt[16];
 	unsigned char key[16];
 	unsigned char tmp[16];
-#ifdef _WIN32
-	uint32_t timeout;
-#else
-	struct timeval timeout;
-#endif
 	AES_Ctx aesCtx;
 
 	*Success = 0;
 	ret = _generateSalt(ourChallenge);
 	if (ret != 0) {
 		LogError("[AUTH]: Unable to generate our challenge: %i", ret);;
-		goto Exit;
-	}
-
-	memset(&timeout, 0, sizeof(timeout));
-#ifdef _WIN32
-	timeout = 5000;
-#else
-	timeout.tv_sec = 5;
-	timeout.tv_usec = 0;
-#endif
-	ret = setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-	if (ret != 0) {
-		ret = errno;
-		LogError("[AUTH]: Unable to set socket send timeout: %i", ret);
-		goto Exit;
-	}
-
-	ret = setsockopt(Socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
-	if (ret != 0) {
-		ret = errno;
-		LogError("[AUTH]: Unable to set socket recv timeout: %i", ret);
 		goto Exit;
 	}
 

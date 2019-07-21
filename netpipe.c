@@ -2,6 +2,7 @@
 #include "compat-header.h"
 #include "auth.h"
 #include "logging.h"
+#include "utils.h"
 #include "netpipe.h"
 
 
@@ -377,8 +378,16 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 	}
 
 	if (ret == 0 && _keepAlive) {
-		ret = setsockopt(End->EndSocket, SOL_SOCKET, SO_KEEPALIVE, (char *)&_keepAlive, sizeof(_keepAlive));
+		ret = UtilsSetKeepAlive(End->EndSocket, _keepAlive);
+		if (ret != 0)
+			LogWarning("UtilsSetKeepAlive: %u", ret);
+
+		ret = 0;
 	}
+
+	ret = UtilsSetTimeouts(sock, 5000);
+	if (ret != 0)
+		LogError("UtilsSetTimeouts: %u", ret);
 
 	if (ret == 0 && End->Password != NULL) {
 		int success = 0;
