@@ -73,7 +73,11 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 	unsigned char salt[16];
 	unsigned char key[16];
 	unsigned char tmp[16];
+#ifdef _WIN32
+	uint32_t timeout;
+#else
 	struct timeval timeout;
+#endif
 	AES_Ctx aesCtx;
 
 	*Success = 0;
@@ -84,8 +88,12 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 	}
 
 	memset(&timeout, 0, sizeof(timeout));
+#ifdef _WIN32
+	timeout = 5000;
+#else
 	timeout.tv_sec = 5;
 	timeout.tv_usec = 0;
+#endif
 	ret = setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
 	if (ret != 0) {
 		ret = errno;
@@ -136,10 +144,11 @@ int AuthSocket(SOCKET Socket, const char *Password, int *Success)
 
 	if (recv(Socket, tmp, sizeof(tmp), 0) != sizeof(tmp)) {
 		ret = errno;
-		LogError("[AUTH]: Failed to receive encrypted info: %i\n", ret);
+		LogError("[AUTH]: Failed to receive encrypted info: %u\n", ret);
 		goto Exit;
 	}
 	
+	ret = 0;
 	_print16("our encrypted", tmp);
 	AES_SetupDecrypt(&aesCtx, key, sizeof(key) * 8);
 	AES_Decrypt(&aesCtx, tmp, sizeof(tmp), otherChallenge);
