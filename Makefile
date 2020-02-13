@@ -1,5 +1,6 @@
 TARGET=netpipe
-CFLAGS= -O3 -Wall --std=gnu99 -DNDEBUG -Wno-unused-function
+CFLAGS ?= -O3 -pipe
+CFLAGS += -Wall --std=gnu99 -DNDEBUG -Wno-unused-function
 OBJDIR=./obj
 
 OBJ=\
