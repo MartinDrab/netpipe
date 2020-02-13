@@ -17,8 +17,10 @@ INCLUDE= -iquote ./
 .PHONY: all
 all: $(TARGET)
 
-$(OBJDIR)/%.o : %.c
-	@mkdir -p $(OBJDIR)
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o : %.c | $(OBJDIR)
 	@echo "Compiling $<"
 	@$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
