@@ -25,5 +25,6 @@ $(TARGET): $(OBJ)
 
 all: $(TARGET)
 
+.PHONY: clean
 clean:
-	@rm -f $(OBJ)
+	$(RM) $(OBJ) $(TARGET)
