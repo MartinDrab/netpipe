@@ -13,7 +13,6 @@ OBJ=\
 	$(OBJDIR)/sha2.o	\
 	$(OBJDIR)/utils.o	\
 
-INCLUDE= -iquote ./
 
 .PHONY: all
 all: $(TARGET)
@@ -21,13 +20,11 @@ all: $(TARGET)
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-$(OBJDIR)/%.o : %.c | $(OBJDIR)
-	@echo "Compiling $<"
-	@$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 $(TARGET): $(OBJ)
-	@echo "Linking $@"
-	@$(CC) $^ $(LIBS) -o $@
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) $(LDLIBS) -o $@
 
 
 .PHONY: clean
