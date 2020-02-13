@@ -41,6 +41,7 @@
 typedef int ssize_t;
 #define poll(a, b, c)			WSAPoll(a, b, c)
 #define pollfd					WSAPOLLFD
+#define sleep(t)				Sleep((t) * 1000)
 #endif
 
 
