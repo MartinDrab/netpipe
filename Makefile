@@ -14,6 +14,9 @@ OBJ=\
 
 INCLUDE= -iquote ./
 
+.PHONY: all
+all: $(TARGET)
+
 $(OBJDIR)/%.o : %.c
 	@mkdir -p $(OBJDIR)
 	@echo "Compiling $<"
@@ -23,7 +26,6 @@ $(TARGET): $(OBJ)
 	@echo "Linking $@"
 	@$(CC) $^ $(LIBS) -o $@
 
-all: $(TARGET)
 
 .PHONY: clean
 clean:
