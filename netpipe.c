@@ -464,31 +464,31 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 	{ --aArgc; ++aArg;  }
 
 COMMAND_LINE_OPTION _cmdOptions[] = {
-	{otSourceHost, 0, 1, 2, {"-d", "--source-host"}},
-	{otSourcePort, 0, 1, 2, {"-p", "--source-port"}},
-	{otTargetHost, 0, 1, 2, {"-D", "--target-host"}},
-	{otTargetPort, 0, 1, 2, {"-P", "--target-port"}},
-	{otIPv4Only, 0, 0, 2, {"-4", "--ipv4-only"}},
-	{otIPv6Only, 0, 0, 2, {"-6", "--ipv6-only"}},
-	{otLogError, 0, 0, 1, {"--log-error"}},
-	{otLogWarning, 0, 0, 1, {"--log-warning"}},
-	{otLogInfo, 0, 0, 1, {"--log-info"}},
-	{otLogPacket, 0, 0, 1, {"--log-packet"}},
-	{otLogPacketData, 0, 0, 1, {"--log-packet-data"}},
-	{otOneConnection, 0, 0, 2, {"-1", "--single-connection"}},
-	{otKeepAlive, 0, 0, 2, {"-k", "--keep-alive"}},
-	{otHelp, 0, 0, 2, {"-h", "--help"}},
-	{otAuthSource, 0, 1, 2, {"-a", "--auth-source"}},
-	{otAuthTarget, 0, 1, 2, {"-A", "--auth-target"}},
-	{otLogFile, 0, 1, 2, {"-l", "--log-file"}},
-	{otVersion, 0, 0, 2, {"-v", "--version"}},
-	{otReceiveDomain, 0, 0, 2, {"-r", "--receive-domain"}},
-	{otSendDomain, 0, 1, 2, {"-S", "--send-domain"}},
+	{ otSourceHost,      0, 1, 2, {"-d", "--source-host"},       "<string> Domain/address of the source end" },
+	{ otSourcePort,      0, 1, 2, {"-p", "--source-port"},       "<integer> Source port" },
+	{ otTargetHost,      0, 1, 2, {"-D", "--target-host"},       "<string> Domain/address of the target end" },
+	{ otTargetPort,      0, 1, 2, {"-P", "--target-port"},       "<integer> Target port" },
+	{ otIPv4Only,        0, 0, 2, {"-4", "--ipv4-only"},         "Use only IPv4" },
+	{ otIPv6Only,        0, 0, 2, {"-6", "--ipv6-only"},         "Use only IPv6" },
+	{ otLogError,        0, 0, 1, {      "--log-error"},         "Log error messages" },
+	{ otLogWarning,      0, 0, 1, {      "--log-warning"},       "Log warnings" },
+	{ otLogInfo,         0, 0, 1, {      "--log-info"},          "Log information-level messages" },
+	{ otLogPacket,       0, 0, 1, {      "--log-packet"},        "Log lengths of sent and received data" },
+	{ otLogPacketData,   0, 0, 1, {      "--log-packet-data"},   "Log data of the transmitted packets" },
+	{ otOneConnection,   0, 0, 2, {"-1", "--single-connection"}, "Allow at most one connection established between the source and the target at any moment" },
+	{ otKeepAlive,       0, 0, 2, {"-k", "--keep-alive"},        "Use the keep-alive feature of the TCP protocol" },
+	{ otHelp,            0, 0, 2, {"-h", "--help"},              "Show this help" },
+	{ otAuthSource,      0, 1, 2, {"-a", "--auth-source"}},
+	{ otAuthTarget,      0, 1, 2, {"-A", "--auth-target"}},
+	{ otLogFile,         0, 1, 2, {"-l", "--log-file"}},
+	{ otVersion,         0, 0, 2, {"-v", "--version"},           "Show version information" },
+	{ otReceiveDomain,   0, 0, 2, {"-r", "--receive-domain"}},
+	{ otSendDomain,      0, 1, 2, {"-S", "--send-domain"}},
 #ifndef _WIN32
-	{otUnixSource, 0, 0, 2, {"-u", "--unix-source"}},
-	{otUnixDest, 0, 0, 2, {"-U", "--unix-dest"}},
+	{ otUnixSource,      0, 0, 2, {"-u", "--unix-source"},       "The source is an Unix domain socket" },
+	{ otUnixDest,        0, 0, 2, {"-U", "--unix-dest"},         "The dest is an Unix domain socket" },
 #endif
-	{otUnknown, 0, 0, 0},
+	{ otUnknown,         0, 0, 0},
 };
 
 
@@ -502,25 +502,17 @@ void usage(void)
 	fprintf(stderr, "  cc - connect to both source and target\n");
 	fprintf(stderr, "The connection to the target is established only after the source connection\n");
 	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "-d, --source-host <string> Domain/address of the source end\n");
-	fprintf(stderr, "-p, --source-port <integer> Source port\n");
-	fprintf(stderr, "-D, --target-host <string> Domain/address of the target end\n");
-	fprintf(stderr, "-P, --target-port <integer> Target port\n");
-	fprintf(stderr, "-4 - Use only IPv4\n");
-	fprintf(stderr, "-6 - Use only IPv6\n");
-	fprintf(stderr, "--log-error - Log error messages\n");
-	fprintf(stderr, "--log-warning - Log warnings\n");
-	fprintf(stderr, "--log-info - Log information-level messages\n");
-	fprintf(stderr, "--log-packet - Log lengths of sent and received data\n");
-	fprintf(stderr, "--log-packet-data Log data of the transmitted packets\n");
-#ifndef _WIN32
-	fprintf(stderr, "-u, --unix-source The source is an Unix domain socket\n");
-	fprintf(stderr, "-U, --unix-dest The dest is an Unix domain socket\n");
-#endif
-	fprintf(stderr, "-1, --single-connection Allow at most one connection established between the source and the target at any moment\n");
-	fprintf(stderr, "-k, --keep-alive Use the keep-alive feature of the TCP protocol\n");
-	fprintf(stderr, "-h, --help - Show this help\n");
-	fprintf(stderr, "-v, --version - Show version information\n");
+
+	for (const COMMAND_LINE_OPTION * c = _cmdOptions; c->Type != otUnknown; c++) {
+		fprintf(stderr, "  %s", c->Names[0]);
+		for (int i = 1 ; i < c->NameCount; i++) {
+			fprintf(stderr, ", %s", c->Names[i]);
+		}
+		if (c->Description) {
+			fprintf(stderr, " - %s", c->Description);
+		}
+		fputc('\n', stderr);
+	}
 
 	return;
 }
