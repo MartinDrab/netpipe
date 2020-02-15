@@ -1,5 +1,6 @@
 TARGET=netpipe
-CFLAGS= -O3 -Wall --std=gnu99 -DNDEBUG -Wno-unused-function
+CFLAGS ?= -O3 -pipe
+CFLAGS += -Wall --std=gnu99 -DNDEBUG -Wno-unused-function
 OBJDIR=./obj
 
 OBJ=\
@@ -12,18 +13,20 @@ OBJ=\
 	$(OBJDIR)/sha2.o	\
 	$(OBJDIR)/utils.o	\
 
-INCLUDE= -iquote ./
 
-$(OBJDIR)/%.o : %.c
-	@mkdir -p $(OBJDIR)
-	@echo "Compiling $<"
-	@$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
-
-$(TARGET): $(OBJ)
-	@echo "Linking $@"
-	@$(CC) $^ $(LIBS) -o $@
-
+.PHONY: all
 all: $(TARGET)
 
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/%.o: %.c | $(OBJDIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(TARGET): $(OBJ)
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) $(LDLIBS) -o $@
+
+
+.PHONY: clean
 clean:
-	@rm -f $(OBJ)
+	$(RM) $(OBJ) $(TARGET)
