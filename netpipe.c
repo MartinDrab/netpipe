@@ -814,11 +814,7 @@ int NetPipeMain(int argc, char *argv[])
 				closesocket(source.EndSocket);
 		} else LogError("Failed to prepare the source channel: %u", ret);
 
-#ifdef _WIN32
-		Sleep(_timeout * 1000);
-#else
 		sleep(_timeout);
-#endif
 	}
 
 
