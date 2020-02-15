@@ -290,7 +290,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 							ret = bind(sock, genAddr, genAddrLen);
 							if (ret == 0) {
 								LogInfo("Listening");
-								ret = listen(sock, 0);
+								ret = listen(sock, SOMAXCONN);
 								if (ret == -1)
 									LogError("Error %u", errno);
 							} else LogError("Error %u", errno);
