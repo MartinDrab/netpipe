@@ -12,7 +12,7 @@ int RandomBuffer(void *Buffer, uint32_t Size)
 	HCRYPTPROV hCryptProv = 0;
 
 	if (CryptAcquireContextW(&hCryptProv, NULL, L"Microsoft Base Cryptographic Provider v1.0", PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-		if (!CryptGenRandom(hCryptProv, 16, Buffer))
+		if (!CryptGenRandom(hCryptProv, Size, Buffer))
 			ret = GetLastError();
 
 		CryptReleaseContext(hCryptProv, 0);
