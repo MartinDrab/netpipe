@@ -39,6 +39,7 @@ typedef struct _COMMAND_LINE_OPTION {
 	int ArgumentCount;
 	size_t NameCount;
 	char *Names[2];
+	char *ArgumentType;
 	char *Description;
 } COMMAND_LINE_OPTION, *PCOMMAND_LINE_OPTION;
 
