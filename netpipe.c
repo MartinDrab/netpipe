@@ -502,19 +502,17 @@ void usage(void)
 	fprintf(stderr, "  cc - connect to both source and target\n");
 	fprintf(stderr, "The connection to the target is established only after the source connection\n");
 	fprintf(stderr, "Options:\n");
-
-	for (const COMMAND_LINE_OPTION * c = _cmdOptions; c->Type != otUnknown; c++) {
+	for (const COMMAND_LINE_OPTION *c = _cmdOptions; c->Type != otUnknown; c++) {
 		fprintf(stderr, "  %s", c->Names[0]);
-		for (int i = 1 ; i < c->NameCount; i++) {
+		for (int i = 1 ; i < c->NameCount; i++)
 			fprintf(stderr, ", %s", c->Names[i]);
-		}
 
 		if (c->ArgumentType != NULL)
 			fprintf(stderr, " <%s>", c->ArgumentType);
 
-		if (c->Description) {
+		if (c->Description)
 			fprintf(stderr, " - %s", c->Description);
-		}
+
 		fputc('\n', stderr);
 	}
 
