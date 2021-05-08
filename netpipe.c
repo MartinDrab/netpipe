@@ -52,16 +52,39 @@ static char *_sourceSuppliedDomain = NULL;
 static int _sourceReceiveDomain = 0;
 static char *_targetSendDomain = NULL;
 
-static void _ProcessChannel(PCHANNEL_DATA Data)
+
+
+static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 {
 	int ret = 0;
 	ssize_t len = 0;
+	char dataBuffer[4096];
+
+	do {
+		len = recv(Source, dataBuffer, sizeof(dataBuffer), 0);
+		if (len > 0) {
+			LogPacket("<<< %zu bytes received", len);
+			len = send(Dest, dataBuffer, len, 0);
+			if (len >= 0)
+				LogPacket(">>> %zu bytes sent", len);
+		}
+
+		if (len == -1)
+			ret = -1;
+	} while (len > 0 &&  Flags & POLLHUP);
+
+	return ret;
+}
+
+
+static void _ProcessChannel(PCHANNEL_DATA Data)
+{
+	int ret = 0;
 #ifndef _WIN32
 	struct pollfd fds[2];
 #else
 	pollfd fds[2];
 #endif
-	char dataBuffer[4096];
 
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = Data->SourceSocket;
@@ -70,7 +93,6 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	fds[1].events = POLLIN;
 	LogInfo("Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
-		len = 0;
 		fds[0].revents = 0;
 		fds[1].revents = 0;
 		ret = poll(fds, sizeof(fds) / sizeof(fds[0]), 1000);
@@ -81,42 +103,20 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				break;
 			}
 
-			if (fds[0].revents & POLLIN) {
-				len = recv(Data->SourceSocket, dataBuffer, sizeof(dataBuffer), 0);
-				if (len > 0) {
-					LogPacket("<<< %u bytes received", len);
-					len = send(Data->DestSocket, dataBuffer, len, 0);
-					if (len >= 0)
-						LogPacket(">>> %u bytes sent", len);
-				}
+			if (fds[0].revents & POLLIN)
+				ret = _StreamData(Data->SourceSocket, Data->DestSocket, fds[0].revents);
 
-				if (len == -1)
-					ret = -1;
-			}
-
-			if (fds[1].revents & POLLIN) {
-				len = recv(Data->DestSocket, dataBuffer, sizeof(dataBuffer), 0);
-				if (len > 0) {
-					LogPacket(">>> %u bytes received", len);
-					len = send(Data->SourceSocket, dataBuffer, len, 0);
-					if (len >= 0)
-						LogPacket("<<< %u bytes sent", len);
-				}
-
-				if (len == -1)
-					ret = -1;
-			}
+			if (fds[1].revents & POLLIN)
+				ret = _StreamData(Data->DestSocket, Data->SourceSocket, fds[1].revents);
 
 			if ((fds[0].revents & POLLHUP) ||
 				(fds[1].revents & POLLHUP)) {
 				LogInfo("Connection closed");
 				break;
 			}
-		} else if (ret == SOCKET_ERROR && errno == EINTR) {
+		} else if (ret == SOCKET_ERROR && errno == EINTR)
 			ret = 0;
-			len = 1;
-		}
-	} while (!_terminated && len >= 0 && ret >= 0);
+	} while (!_terminated && ret >= 0);
 
 	shutdown(Data->DestSocket, SD_BOTH);
 	closesocket(Data->DestSocket);
@@ -184,7 +184,7 @@ static int _recv_fixed(SOCKET Socket, void *Buffer, size_t Length, int Flags)
 {
 	int ret = 0;
 
-	if (recv(Socket, Buffer, Length, Flags) != Length) {
+	if ((size_t)recv(Socket, Buffer, Length, Flags) != Length) {
 		ret = errno;
 		if (ret == 0)
 			ret = EINTR;
@@ -242,7 +242,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 				af = End->AddressFamily;
 
 			genAddr = addrs->ai_addr;
-			genAddrLen = addrs->ai_addrlen;
+			genAddrLen = (socklen_t)addrs->ai_addrlen;
 		} else ret = errno;
 
 #ifndef _WIN32
