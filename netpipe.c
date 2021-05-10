@@ -99,7 +99,16 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 		if (ret > 0) {
 			if ((fds[0].revents & POLLERR) ||
 				(fds[1].revents & POLLERR)) {
-				LogError("Error occurred during channel processing");
+				for (size_t i = 0; i < sizeof(fds) / sizeof(fds[0]); ++i) {
+					if (fds[i].revents & POLLERR) {
+						int err = 0;
+						socklen_t errLen = sizeof(err);
+
+						getsockopt(fds[i].fd, SOL_SOCKET, SO_ERROR, (void*)&err, &errLen);
+						LogError("Error occurred during channel processing on socket #%zu: %i", i, err);
+					}
+				}
+
 				break;
 			}
 
