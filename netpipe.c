@@ -252,7 +252,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 			genAddr = addrs->ai_addr;
 			genAddrLen = (socklen_t)addrs->ai_addrlen;
-		} else ret = errno;
+		} else LogError("getaddrinfo: %i", ret);
 
 #ifndef _WIN32
 	} else {
@@ -363,12 +363,17 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 					End->AcceptAddress = sockaddrstr(genAddr);
 					if (End->AcceptAddress != NULL) {
 						LogInfo("Connesting to %s (%s)", End->Address, End->AcceptAddress);
-						ret = connect(sock, genAddr, genAddrLen);
-						if (ret == 0) {
-							End->EndSocket = sock;
-							sock = INVALID_SOCKET;
-						}
-					} else LogError("Out of memory");
+						if (genAddr != NULL) {
+							ret = connect(sock, genAddr, genAddrLen);
+							if (ret == 0) {
+								End->EndSocket = sock;
+								sock = INVALID_SOCKET;
+							}
+						} else ret = EINVAL;
+					} else {
+						ret = ENOMEM;
+						LogError("Out of memory");
+					}
 					break;
 			}
 
@@ -462,6 +467,7 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 
 	if (ret != 0) {
 		free(End->AcceptAddress);
+		End->AcceptAddress = NULL;
 		if (End->EndSocket != INVALID_SOCKET)
 			closesocket(End->EndSocket);
 	}
