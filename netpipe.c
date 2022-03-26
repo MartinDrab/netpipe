@@ -466,10 +466,15 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 	}
 
 	if (ret != 0) {
-		free(End->AcceptAddress);
-		End->AcceptAddress = NULL;
-		if (End->EndSocket != INVALID_SOCKET)
+		if (End->AcceptAddress != NULL) {
+			free(End->AcceptAddress);
+			End->AcceptAddress = NULL;
+		}
+
+		if (End->EndSocket != INVALID_SOCKET) {
 			closesocket(End->EndSocket);
+			End->EndSocket = INVALID_SOCKET;
+		}
 	}
 
 	return ret;
