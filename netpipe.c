@@ -471,7 +471,8 @@ static int _PrepareChannelEnd(PCHANNEL_END End, int KeepListening, int ReceiveDo
 			End->AcceptAddress = NULL;
 		}
 
-		if (End->EndSocket != INVALID_SOCKET) {
+		if (End->EndSocket != INVALID_SOCKET &&
+			End->EndSocket) {
 			closesocket(End->EndSocket);
 			End->EndSocket = INVALID_SOCKET;
 		}
