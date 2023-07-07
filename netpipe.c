@@ -60,7 +60,7 @@ static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 	ssize_t len = 0;
 	char dataBuffer[4096];
 
-	do {
+//	do {
 		len = recv(Source, dataBuffer, sizeof(dataBuffer), 0);
 		if (len > 0) {
 			LogPacket("<<< %zu bytes received", len);
@@ -71,7 +71,7 @@ static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 
 		if (len == -1)
 			ret = -1;
-	} while (len > 0 &&  Flags & POLLHUP);
+//	} while (len > 0);
 
 	return ret;
 }
@@ -131,8 +131,12 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	closesocket(Data->DestSocket);
 	shutdown(Data->SourceSocket, SD_BOTH);
 	closesocket(Data->SourceSocket);
-	free(Data->SourceAddress);
-	free(Data->DestAddress);
+	if (Data->SourceAddress != NULL)
+		free(Data->SourceAddress);
+	
+	if (Data->DestAddress != NULL)
+		free(Data->DestAddress);
+	
 	free(Data);
 
 	return;
