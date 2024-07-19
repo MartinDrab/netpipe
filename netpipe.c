@@ -60,7 +60,7 @@ static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 	ssize_t len = 0;
 	char dataBuffer[4096];
 
-//	do {
+	do {
 		len = recv(Source, dataBuffer, sizeof(dataBuffer), 0);
 		if (len > 0) {
 			LogPacket("<<< %zu bytes received", len);
@@ -71,7 +71,7 @@ static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 
 		if (len == -1)
 			ret = -1;
-//	} while (len > 0);
+	} while (len > 0);
 
 	return ret;
 }
