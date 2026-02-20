@@ -58,20 +58,30 @@ static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 {
 	int ret = 0;
 	ssize_t len = 0;
+	ssize_t bytesSent = 0;
 	char dataBuffer[4096];
+	ssize_t bytesReceived = 0;
 
-	do {
-		len = recv(Source, dataBuffer, sizeof(dataBuffer), 0);
-		if (len > 0) {
-			LogPacket("<<< %zu bytes received", len);
-			len = send(Dest, dataBuffer, len, 0);
-			if (len >= 0)
-				LogPacket(">>> %zu bytes sent", len);
+	len = recv(Source, dataBuffer, sizeof(dataBuffer), 0);
+	if (len > 0) {
+		ret = 1;
+		bytesReceived = len;
+		LogPacket("<<< %zu bytes received", len);
+		while (len > 0) {
+			bytesSent = len;
+			if (bytesSent > len)
+				bytesSent = len;
+
+			bytesSent = send(Dest, dataBuffer + bytesReceived - len, bytesSent, 0);
+			if (bytesSent >= 0) {
+				LogPacket(">>> %zu bytes sent", bytesSent);
+				len -= bytesSent;
+			} else len = -1;
 		}
+	}
 
-		if (len == -1)
-			ret = -1;
-	} while (len > 0);
+	if (len == -1)
+		ret = -1;
 
 	return ret;
 }
@@ -80,6 +90,7 @@ static int _StreamData(SOCKET Source, SOCKET Dest, uint32_t Flags)
 static void _ProcessChannel(PCHANNEL_DATA Data)
 {
 	int ret = 0;
+	int processed = 0;
 #ifndef _WIN32
 	struct pollfd fds[2];
 #else
@@ -93,6 +104,7 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 	fds[1].events = POLLIN;
 	LogInfo("Starting to process the connection (%s <--> %s)", Data->SourceAddress, Data->DestAddress);
 	do {
+		processed = 0;
 		fds[0].revents = 0;
 		fds[1].revents = 0;
 		ret = poll(fds, sizeof(fds) / sizeof(fds[0]), 1000);
@@ -112,14 +124,21 @@ static void _ProcessChannel(PCHANNEL_DATA Data)
 				break;
 			}
 
-			if (fds[0].revents & POLLIN)
+			if (fds[0].revents & POLLIN) {
 				ret = _StreamData(Data->SourceSocket, Data->DestSocket, fds[0].revents);
+				if (ret == 1)
+					processed = 1;
+			}
 
-			if (fds[1].revents & POLLIN)
+			if (fds[1].revents & POLLIN) {
 				ret = _StreamData(Data->DestSocket, Data->SourceSocket, fds[1].revents);
+				if (ret == 1)
+					processed = 1;
+			}
 
-			if ((fds[0].revents & POLLHUP) ||
-				(fds[1].revents & POLLHUP)) {
+			if (!processed &&
+				(fds[0].revents & POLLHUP ||
+				fds[1].revents & POLLHUP)) {
 				LogInfo("Connection closed");
 				break;
 			}
